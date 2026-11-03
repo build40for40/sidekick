@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sidekick local performance lab</title>
+<style>body{font:16px system-ui;max-width:1000px;margin:30px auto;padding:20px;background:#f5f6ee;color:#233c2c}button,select{font:inherit;margin:8px;padding:8px}pre{white-space:pre-wrap;overflow-wrap:anywhere}label{display:inline-block}table{border-collapse:collapse}td,th{padding:8px;border:1px solid #aaa;text-align:left}</style>
+<h1>Local performance lab</h1><p>Downloads local models after you click Load. Audio and results stay in this tab. Synthetic speech tests are labelled and do not measure microphone quality or actual audible latency.</p>
+<label>Tutor <select id="tutor"><option value="fast">Qwen 0.5B (experimental)</option><option value="quality" selected>Qwen 1.5B</option><option value="compact">SmolLM2 360M (experimental)</option></select></label>
+<label>Audio <select id="backend"><option value="auto">Try GPU, local WASM fallback</option><option value="wasm">WASM baseline</option></select></label>
+<label>Suite <select id="suite"><option value="quick">Quick smoke check</option><option value="audio">Audio only, five passes</option><option value="full">Full suite, five passes</option></select></label>
+<button id="load">Load local models</button><button id="run" disabled>Run comparison suite</button><button id="save" disabled>Save results</button>
+<p id="status" role="status">Choose a configuration and load models.</p><pre id="environment"></pre><pre id="results" aria-live="polite"></pre><script type="module" src="/src/performance.ts"></script></html>

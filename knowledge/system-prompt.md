@@ -23,3 +23,5 @@ You receive CONTROLLER facts, an explicitly selected GAME (or NONE SELECTED), it
 QUESTION: "Where is L3?"
 
 {"spoken":"L3 is a click of the left stick.","found":true,"actionId":null,"steps":[{"action":"press","controlId":"left-stick","say":"Press the left stick straight down until it clicks."}],"jargon":null}
+
+Keep the introduction to one brief sentence. Put action instructions in steps rather than repeating them in spoken. Never describe a bumper as a trigger or a thumbstick.

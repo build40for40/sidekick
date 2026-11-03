@@ -64,6 +64,9 @@ A desktop in-app Chromium browser rendered the revised temporary PS5 controller 
 
 Overcooked chop/throw and dash mappings remain disputed in the source pack; no physical verification was performed and no verification flags were upgraded. Artist GLB transforms, holding/double-press appearance, reduced motion and real audio synchronization still need manual checks with the final asset and models. The existing large runtime/WASM bundle warning remains.
 
+## Performance revision
+
+See [performance observations and limits](PERFORMANCE.md). The current automated suite includes direct PCM flush/cancellation cleanup, silence trimming, decimal-safe sentence splitting, synthesis prefetch without early visual cues, cancelled inference queue recovery, lazy audio worker replacement, stable grammar warmup and bounded-lifetime audio caching. These are mocked inference/media checks. A separate real-model comparison page is built at `performance.html`. The detailed implementation and measured browser limitations there supersede the original statement that cancelled ONNX work is allowed to finish.
 ## Live controller input revision — 3 November 2026
 
 Live Gamepad API input is enabled by default, with a mount option and public method to disable it. The existing controller renders simultaneous button holds/releases, analog trigger travel and both sticks with a radial dead zone. Hardware feedback uses original local model transforms, takes priority over tutorial motion, retains highlights in reduced-motion mode and does not move the camera. Host code receives typed state/change events; no UI elements were added.
