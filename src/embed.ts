@@ -10,6 +10,7 @@ import activeGame from '../knowledge/active-game.json';
 import { VoiceOrchestrator } from './voice/orchestrator';
 import { capabilities, loadLocal, prefetchWhisper, type LocalRuntime, type WhisperRuntime } from './voice/local';
 import type { Phase, Progress, VoiceEvent } from './voice/types';
+import { performanceOptions, type VoicePerformanceOptions } from './voice/config';
 
 export interface SidekickOptions {
   /** Show spoken replies below the controller. The host can render captions from reply events instead. */
@@ -17,6 +18,8 @@ export interface SidekickOptions {
   /** No game is selected by default. 'active' explicitly selects the pack configuration. */
   game?: GameSelection;
   playback?: PlaybackOptions;
+  /** Select a local model/backend for latency versus quality comparisons. */
+  performance?: VoicePerformanceOptions;
   /** Live controller feedback is enabled by default. No connection UI is added. */
   gamepad?: boolean;
   /** Preload recognition on capable browsers. Defaults to true; large models still require consent. */
@@ -80,6 +83,7 @@ const activeDemonstrations = new Set<HTMLElement>();
 /** Mount one isolated component. The host owns its dimensions and surrounding UI. */
 export function createSidekick(container: HTMLElement, options: SidekickOptions = {}): Sidekick {
   playbackOptions(options.playback);
+  const performance = performanceOptions(options.performance);
   const checkGame = (game: GameSelection) => { if (game !== null && game !== 'active' && !activeGame.available_games.includes(game)) throw Error(`Unknown game: ${game}`); };
   let game: GameSelection = options.game ?? null;
   checkGame(game);
@@ -145,7 +149,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
       if (state.destroyed) return;
       // Recognition finishes before the large models start; share progress with the foreground setup.
       state.progress = progress; render(); emit({ type: 'progress', progress });
-    },abort.signal); } catch (error) {
+    },abort.signal,performance.audioBackend); } catch (error) {
       prefetching = false; state.progress = null;
       prefetchNotice = 'Speech recognition could not preload. Record to retry voice setup.'; render();
       throw error;
@@ -247,7 +251,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
           const loaded = await loadLocal(progress => {
             if (state.destroyed) return;
             state.progress = progress; render(); emit({ type: 'progress', progress });
-          }, abort.signal,game,recognition);
+          }, abort.signal,game,performance,recognition);
           if (state.destroyed) { loaded.dispose(); throw new DOMException('Voice setup cancelled.', 'AbortError'); }
           runtime = loaded; voice.adapters = loaded.adapters; state.mode = 'local'; state.progress = null; state.game = loaded.getGame();
           voice.finishDownload(); emit({ type: 'mode', mode: 'local' });

@@ -51,11 +51,13 @@ describe('embedding boundary', () => {
     const audio = vi.fn(function() { return { resume:()=>Promise.resolve(),close:()=>Promise.resolve() }; });
     vi.stubGlobal('AudioContext',audio);
     mock.loadLocal.mockResolvedValue({ adapters:{ tutor:{ interrupt:vi.fn() } },dispose:mock.runtimeDispose,getGame:()=>null });
-    const { api,root } = mount({ autoInitializeVoice:true });
+    const { api,root } = mount({ autoInitializeVoice:true,performance:{ audioBackend:'wasm' } });
     expect(root.querySelector<HTMLButtonElement>('.record')!.disabled).toBe(true);
     await flush();
     expect(mock.loadLocal).toHaveBeenCalledOnce(); expect(mock.prefetchWhisper).toHaveBeenCalledOnce();
-    expect(mock.loadLocal.mock.calls[0][3]).toBe(mock.prefetchWhisper.mock.results[0].value);
+    expect(mock.loadLocal.mock.calls[0][4]).toBe(mock.prefetchWhisper.mock.results[0].value);
+    expect(mock.prefetchWhisper.mock.calls[0][2]).toBe('wasm');
+    expect(mock.loadLocal.mock.calls[0][3]).toMatchObject({ audioBackend:'wasm',tutor:'quality' });
     expect(api.getState()).toMatchObject({ mode:'local',phase:'ready' });
     expect(microphone).not.toHaveBeenCalled(); expect(audio).not.toHaveBeenCalled();
     root.querySelector<HTMLButtonElement>('.record')!.click(); await flush();
@@ -102,9 +104,9 @@ describe('embedding boundary', () => {
     const { api,root }=mount({ gamepad:false });await api.initializeVoice({consent:true});
     const events:any[]=[];api.on(event=>events.push(event));api.ask('Show me.');await flush();
     sources[0].onended!();await flush();
-    expect(api.getState().demonstrating).toBe(true);expect(synthesize).toHaveBeenCalledTimes(2);
+    expect(api.getState().demonstrating).toBe(true);const prepared=synthesize.mock.calls.length;
     root.querySelector<HTMLButtonElement>('.exit-animation')!.click();await flush();vi.advanceTimersByTime(10000);
-    expect(sources[1].stop).toHaveBeenCalledOnce();expect(synthesize).toHaveBeenCalledTimes(2);
+    expect(sources[1].stop).toHaveBeenCalledOnce();expect(synthesize).toHaveBeenCalledTimes(prepared);expect(sources).toHaveLength(2);
     expect(api.getState()).toMatchObject({phase:'ready',demonstrating:false});
     expect(events.some(event=>event.type==='demonstration')).toBe(false);expect(vi.getTimerCount()).toBe(0);
   });

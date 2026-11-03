@@ -9,6 +9,22 @@ export interface TutorStep {
 export interface KnowledgeReply { spoken: string; found: boolean; actionId: string | null; steps: TutorStep[]; jargon: { term: string; means: string } | null }
 export type TutorReply = ControllerReply | KnowledgeReply;
 export const knowledgeResponseSchema = packSchema;
+/** Constrain identifiers during decoding, rather than relying on small models to copy IDs. */
+export function generationSchema(actionIds: readonly string[]) {
+  const properties = {
+    ...packSchema.properties,
+    actionId: { enum: [null, ...actionIds] },
+    steps: { ...packSchema.properties.steps, items: {
+      ...packSchema.properties.steps.items,
+      properties: { ...packSchema.properties.steps.items.properties, controlId: { type: 'string', enum: controls.map(c => c.id) } },
+    } },
+  };
+  // Metadata is for human pack authors, not the decoder. One shape avoids expensive
+  // union-grammar compilation; semantic conditions remain enforced by validateReply.
+  const strip = (value: unknown): unknown => Array.isArray(value) ? value.map(strip) : value && typeof value === 'object'
+    ? Object.fromEntries(Object.entries(value).filter(([key]) => !['description','title','$schema'].includes(key)).map(([key, item]) => [key,strip(item)])) : value;
+  return strip({ type:'object', required:packSchema.required, additionalProperties:false, properties });
+}
 export function replySteps(reply: TutorReply): TutorStep[] {
   return 'steps' in reply ? reply.steps : reply.action === 'none' ? [] : [{ action: reply.action, controlId: reply.controlId!, say: reply.spoken }];
 }

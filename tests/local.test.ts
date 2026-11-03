@@ -10,8 +10,8 @@ it('prefetches only recognition and reuses the same worker during full setup, wi
   vi.stubGlobal('Worker',PendingWorker);
   const abort=new AbortController();
   const whisper=prefetchWhisper(()=>{},abort.signal);
-  expect(workers).toHaveLength(1);expect(workers[0].postMessage).toHaveBeenCalledWith({id:1,op:'init-asr'});
-  const loading=loadLocal(()=>{},abort.signal,null,whisper);const rejected=expect(loading).rejects.toThrow('cancelled');
+  expect(workers).toHaveLength(1);expect(workers[0].postMessage).toHaveBeenCalledWith({id:1,op:'init-asr',backend:'auto'},[]);
+  const loading=loadLocal(()=>{},abort.signal,null,{},whisper);const rejected=expect(loading).rejects.toThrow('cancelled');
   expect(workers).toHaveLength(3);
   expect(workers.flatMap(worker=>worker.postMessage.mock.calls).filter(([message])=>message.op==='init-asr')).toHaveLength(1);
   abort.abort();await rejected;whisper.dispose();

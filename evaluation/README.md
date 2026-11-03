@@ -1,5 +1,7 @@
 # Small evaluation set
 
+For the GLB disappearance investigation, run the dev server and open `/evaluation/controller-render.html`. It compares reconstructed legacy settings with the corrected asset at fixed camera angles while preserving clear caps. See [the findings and implemented asset correction](../docs/CONTROLLER-RENDERING.md).
+
 `cases.json` contains 12 starting cases for comparing Qwen, SmolLM2 and future fine-tunes. It is synthetic and contains no user recordings or personal data. `npm test` validates the deterministic fixture against the machine-checkable expectations. Those passing tests are not model quality results.
 
 After enabling local voice, enter each prompt as text to isolate generation quality. Then speak it to evaluate ASR separately. Test each model in a fresh page/session on the same hardware, first with cold caches and then warm. Record model ID, weight revision, browser version, OS, GPU, cache state, validation failures, expected control/action and whether the explanation meets each case's criteria. Score brief language, one instruction, correct jargon definition, appropriate clarification and no unsupported physical claims. A validator pass does not prove semantic correctness.

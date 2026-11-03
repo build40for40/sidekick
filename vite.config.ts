@@ -7,7 +7,7 @@ export default defineConfig({
   preview: { headers },
   build: {
     rolldownOptions: {
-      input: { demo: 'index.html', sidekick: 'src/index.ts' },
+      input: { demo: 'index.html', sidekick: 'src/index.ts', performance: 'performance.html' },
       output: { entryFileNames: chunk => chunk.name === 'sidekick' ? 'sidekick.js' : 'assets/[name]-[hash].js' },
       preserveEntrySignatures: 'strict',
     },
