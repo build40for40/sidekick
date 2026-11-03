@@ -22,7 +22,9 @@ Live controller feedback is enabled by default. Pair a controller with macOS ove
 
 ## Embedded unit
 
-The default UI contains the controller and a Record button. First-use consent, loading and errors appear only when needed. Captions are opt-in. The host site supplies text input, lessons, navigation and any other surrounding UI through the public API.
+The default UI contains the controller and a Record button. An X appears during demonstrations; click it or press Escape to stop the animation and narration and ease back to the still front view. Loading, consent and errors appear only when needed. Captions are opt-in. The host site supplies text input, lessons, navigation and other surrounding UI through the public API.
+
+Whisper speech recognition preloads on capable browsers when the component opens. Other hosts still require consent before the large Qwen/Kokoro downloads. The first-party demo opts into the full download automatically with `autoInitializeVoice: true` and shows progress; once ready, Record starts recording with one click. No microphone access or audio playback happens during setup. Hosts can disable the recognition prefetch with `prefetchWhisper: false`.
 
 ```ts
 import { createSidekick } from './src/index';
@@ -64,7 +66,7 @@ The first download can be large and model initialization can take several minute
 
 Generation uses controller facts, the explicitly selected game's filtered pack, the latest successful exchange and the current question. Game changes clear the exchange. Exercises remain in application state. Constrained JSON and verified game inputs/prerequisites are validated before execution or synthesis. Invalid output is rejected, never spoken. Recognition, generation and synthesis are sequenced; weights remain resident after loading. Old ONNX computations finish in their worker but their results are ignored. WebLLM generation is also interrupted. No arbitrary code, tool URLs or model-generated commands are executed. Valid JSON and correct control IDs do not prove the model's prose is accurate.
 
-The introduction and each step are spoken once; the matching control animates during that step. Visual sequences then repeat silently at medium speed without a limit. Hosts can set speed and total passes through the API; no settings UI is included. New questions, recording, stop, game changes, page backgrounding and destruction cancel demonstrations. Jargon is available in reply events and state for the host to display.
+The introduction and each step are spoken once; the matching control animates during that step. Visual sequences then repeat silently at medium speed without a limit, until X, Escape, or `stop()` exits them. Hosts can set speed and total passes through the API; no settings UI is included. New questions, recording, game changes, page backgrounding and destruction also cancel demonstrations. Finite demonstrations settle back to front after 3.5 seconds; explicit exits begin the return immediately. At rest there is no idle spin or float, and manual dragging remains available. Jargon is available in reply events and state for the host to display.
 
 ## Next work
 

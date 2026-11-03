@@ -3,12 +3,14 @@
 .sidekick { position: relative; width: 100%; height: 100%; min-height: 280px; isolation: isolate; overflow: hidden; border-radius: var(--sidekick-stage-radius, 16px); background: var(--sidekick-stage-background, radial-gradient(120% 90% at 50% 38%, #2a1f45 0%, #140f22 48%, #0a0812 100%)); color: #d9d2ec; }
 .scene { position: absolute; inset: 0 0 80px; }
 .scene canvas { display: block; touch-action: none; cursor: grab; }
-.asset-note { position: absolute; top: 16px; left: 18px; right: 18px; z-index: 1; font-size: 10px; line-height: 1.5; letter-spacing: .03em; opacity: .6; pointer-events: none; }
+.asset-note { position: absolute; top: 16px; left: 18px; right: 72px; z-index: 1; font-size: 10px; line-height: 1.5; letter-spacing: .03em; opacity: .6; pointer-events: none; }
 .asset-note a { color: inherit; pointer-events: auto; }
 .record-area { position: absolute; bottom: 20px; left: 16px; right: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none; }
 .record { pointer-events: auto; display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 132px; min-height: 52px; padding: 13px 24px; border: 1px solid #ffffff25; border-radius: 999px; background: var(--sidekick-button-background, #263e2d); color: var(--sidekick-button-color, #fff); font: 500 14px system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 16px #1a302115; }
 .record:hover { filter: brightness(1.12); }
-.record:focus-visible, .control-access button:focus-visible { outline: 3px solid #8ca661; outline-offset: 4px; }
+.record:focus-visible, .control-access button:focus-visible, .exit-animation:focus-visible { outline: 3px solid #c9a6ff; outline-offset: 4px; }
+.exit-animation { position: absolute; top: 12px; right: 12px; z-index: 4; width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 1px solid #c9a6ff80; border-radius: 50%; color: #fff; background: #21182f; font: 300 30px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 16px #0004; }
+.exit-animation:hover { background: #3a2850; }
 .record:disabled { cursor: progress; opacity: .75; }
 .record.listening { background: #a43b35; }
 .record.listening .mic { animation: pulse 1.2s ease-in-out infinite; }

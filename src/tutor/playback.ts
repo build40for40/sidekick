@@ -12,13 +12,14 @@ export function playbackOptions(options: PlaybackOptions = {}): Required<Playbac
 export class DemonstrationPlayer {
   private timer?: ReturnType<typeof setTimeout>;
   private settings: Required<PlaybackOptions>;
-  constructor(private show: (step: TutorStep, durationMs: number) => void, private clear: () => void, options: PlaybackOptions = {}) { this.settings = playbackOptions(options); }
+  constructor(private show: (step: TutorStep, durationMs: number) => void, private clear: () => void, options: PlaybackOptions = {}, private changed: (active: boolean) => void = () => {}) { this.settings = playbackOptions(options); }
   configure(options: PlaybackOptions) { const settings = playbackOptions({ ...this.settings,...options }); this.stop(); this.settings = settings; }
-  stop() { clearTimeout(this.timer); this.timer = undefined; this.clear(); }
-  showSpokenStep(step: TutorStep, durationMs: number) { this.stop(); this.show(step,durationMs); }
+  stop() { clearTimeout(this.timer); this.timer = undefined; this.clear(); this.changed(false); }
+  showSpokenStep(step: TutorStep, durationMs: number) { this.stop(); this.changed(true); this.show(step,durationMs); }
   start(steps: TutorStep[], completedPasses = 0) {
     this.stop();
     if (!steps.length || (this.settings.maxRepeats !== null && completedPasses >= this.settings.maxRepeats)) return;
+    this.changed(true);
     let index = 0, passes = completedPasses;
     const next = () => {
       const duration = stepDuration[this.settings.speed];

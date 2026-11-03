@@ -8,7 +8,7 @@ import { DemonstrationPlayer, playbackOptions, type PlaybackOptions } from './tu
 import type { GameSelection } from './tutor/knowledge';
 import activeGame from '../knowledge/active-game.json';
 import { VoiceOrchestrator } from './voice/orchestrator';
-import { capabilities, loadLocal, type LocalRuntime } from './voice/local';
+import { capabilities, loadLocal, prefetchWhisper, type LocalRuntime, type WhisperRuntime } from './voice/local';
 import type { Phase, Progress, VoiceEvent } from './voice/types';
 
 export interface SidekickOptions {
@@ -19,6 +19,10 @@ export interface SidekickOptions {
   playback?: PlaybackOptions;
   /** Live controller feedback is enabled by default. No connection UI is added. */
   gamepad?: boolean;
+  /** Preload recognition on capable browsers. Defaults to true; large models still require consent. */
+  prefetchWhisper?: boolean;
+  /** Host authorizes the full model download on mount after disclosing its size. Defaults to false. */
+  autoInitializeVoice?: boolean;
 }
 export interface SidekickState {
   phase: Phase;
@@ -32,6 +36,7 @@ export interface SidekickState {
   jargon: { term: string; means: string } | null;
   destroyed: boolean;
   gamepad: GamepadState;
+  demonstrating: boolean;
 }
 export type SidekickEvent = VoiceEvent
   | { type: 'progress'; progress: Progress }
@@ -69,6 +74,8 @@ export interface Sidekick {
 
 const ownedRoots = new WeakMap<HTMLElement, ShadowRoot>();
 const activeMounts = new WeakSet<HTMLElement>();
+// Escape closes only the most recently active instance, without consuming it when nothing is playing.
+const activeDemonstrations = new Set<HTMLElement>();
 
 /** Mount one isolated component. The host owns its dimensions and surrounding UI. */
 export function createSidekick(container: HTMLElement, options: SidekickOptions = {}): Sidekick {
@@ -82,6 +89,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   root.innerHTML = `<style>${styles}</style><section class="sidekick" aria-label="Controller tutor">
     <p class="asset-note"><a class="credit" target="_blank" rel="noopener"></a><span class="demo-note"> · text demo</span><span class="pack-note" hidden><br>Game moves are from Samira's pack (web-sourced, not yet checked on a console).</span></p>
     <div class="scene"></div>
+    <button class="exit-animation" type="button" aria-label="Stop animation" aria-keyshortcuts="Escape" title="Stop animation (Esc)" hidden><span aria-hidden="true">×</span></button>
     <div class="record-area"><p class="notice" role="status" aria-live="polite" hidden></p>
     <p class="caption" aria-live="polite" hidden></p>
     <button class="record" type="button" aria-label="Set up local voice" aria-pressed="false">
@@ -92,17 +100,21 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   </section>`;
   const find = <T extends HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const button = find<HTMLButtonElement>('.record');
+  const exit = find<HTMLButtonElement>('.exit-animation');
   const notice = find('.notice');
   const caption = find('.caption');
   const label = find('.record-label');
   const events = new EventTarget();
   const subscriptions = new Set<EventListener>();
   const abort = new AbortController();
-  let state: SidekickState = { phase: 'ready', mode: 'development', selectedControl: null, lesson: null, caption: '', error: null, progress: null, game: game === 'active' ? activeGame.game : game, jargon: null, destroyed: false, gamepad: { status: 'disabled', controller: null, controls: [] } };
+  let state: SidekickState = { phase: 'ready', mode: 'development', selectedControl: null, lesson: null, caption: '', error: null, progress: null, game: game === 'active' ? activeGame.game : game, jargon: null, destroyed: false, gamepad: { status: 'disabled', controller: null, controls: [] }, demonstrating: false };
   let captions = options.captions ?? false;
   let consentPrompt = false;
   let runtime: LocalRuntime | undefined;
   let pending: Promise<void> | undefined;
+  let whisper: WhisperRuntime | undefined;
+  let prefetching = false;
+  let prefetchNotice = '';
   const assertLive = () => { if (state.destroyed) throw Error('Sidekick has been destroyed. Mount a new instance.'); };
   const requireControl = (id: string) => { if (!byId.has(id)) throw Error(`Unknown control: ${id}`); return byId.get(id)!; };
   const emit = (event: SidekickEvent) => events.dispatchEvent(new CustomEvent('sidekick', { detail: structuredClone(event) }));
@@ -110,6 +122,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     const phase = state.phase;
     const loading = phase === 'downloading';
     button.disabled = loading;
+    exit.hidden = !state.demonstrating;
     button.classList.toggle('listening', phase === 'listening');
     button.classList.toggle('busy', ['thinking','transcribing','speaking'].includes(phase));
     button.setAttribute('aria-pressed', String(phase === 'listening'));
@@ -117,10 +130,37 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     button.setAttribute('aria-label', phase === 'listening' ? 'Finish recording' : loading ? 'Downloading local voice models' : consentPrompt ? 'Download local voice models' : state.mode === 'local' ? 'Start recording' : 'Set up local voice');
     find('.demo-note').hidden = state.mode === 'local';
     find('.pack-note').hidden = !state.game;
-    notice.textContent = state.error ?? (loading ? `${state.progress?.stage ?? 'Loading local voice'}${state.progress?.progress === undefined ? '' : ` · ${Math.round(state.progress.progress)}%`}` : consentPrompt ? 'Download local voice models to record. Downloads may be large and take several minutes. Audio stays on your device.' : phase === 'listening' ? 'Listening. Click again to finish.' : '');
+    const progress = `${state.progress?.stage ?? 'Loading local voice'}${state.progress?.progress === undefined ? '' : ` · ${Math.round(state.progress.progress)}%`}`;
+    notice.textContent = state.error ?? (loading ? `${progress}. Downloading local voice models (about 1 GB). Audio stays on your device; Record is available when ready.` : consentPrompt ? 'Download local voice models to record. Downloads may be large and take several minutes. Audio stays on your device.' : phase === 'listening' ? 'Listening. Click again to finish.' : prefetching ? `Preloading Whisper speech recognition · ${progress}. You can still explore the controller.` : prefetchNotice);
     notice.hidden = !notice.textContent;
     caption.textContent = state.caption;
     caption.hidden = !captions || !state.caption;
+  }
+  function startWhisper() {
+    if (whisper) return whisper;
+    prefetching = true; prefetchNotice = '';
+    state.progress = { stage: 'Whisper · downloading speech recognition' }; render();
+    let created: WhisperRuntime;
+    try { created = prefetchWhisper(progress => {
+      if (state.destroyed) return;
+      // Recognition finishes before the large models start; share progress with the foreground setup.
+      state.progress = progress; render(); emit({ type: 'progress', progress });
+    },abort.signal); } catch (error) {
+      prefetching = false; state.progress = null;
+      prefetchNotice = 'Speech recognition could not preload. Record to retry voice setup.'; render();
+      throw error;
+    }
+    whisper = created;
+    void created.ready.then(() => {
+      if (state.destroyed || whisper !== created) return;
+      prefetching = false;
+      if (!pending) { state.progress = null; render(); }
+    }).catch(() => {
+      if (state.destroyed || whisper !== created) return;
+      created.dispose(); whisper = undefined; prefetching = false;
+      if (!pending) { state.progress = null; prefetchNotice = 'Speech recognition could not preload. Record to retry voice setup.'; render(); }
+    });
+    return created;
   }
   function applyLesson() {
     scene.showHints(state.lesson?.hints ?? true);
@@ -132,7 +172,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     if (!pending) voice.stop();
     player.stop();
     state.selectedControl = id;
-    if (source === 'virtual') { scene.highlight(id); scene.animate(id, c.motion === 'trigger' ? 'squeeze' : 'press'); }
+    if (source === 'virtual') player.showSpokenStep({ action: c.motion === 'trigger' ? 'squeeze' : 'press', controlId: id, say: c.description },1100);
     state.lesson = transitionLesson(state.lesson, { type: 'input', controlId: id, source });
     state.caption = c.description;
     if (source === 'virtual') applyLesson();
@@ -152,7 +192,12 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   });
   const player = new DemonstrationPlayer((step,durationMs) => {
     scene.demonstrate(step,durationMs); state.selectedControl = step.controlId;
-  }, () => scene.clearDemonstration(),options.playback);
+  }, () => scene.clearDemonstration(),options.playback,active => {
+    state.demonstrating = active;
+    activeDemonstrations.delete(container);
+    if (active && !state.destroyed) activeDemonstrations.add(container);
+    if (!state.destroyed) render();
+  });
   const voice = new VoiceOrchestrator(event => {
     if (state.destroyed) return;
     if (event.type === 'phase') { state.phase = event.phase; if (event.phase !== 'error') state.error = null; if (event.phase !== 'speaking') player.stop(); }
@@ -198,14 +243,16 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
           const unsupported = await capabilities();
           if (unsupported) throw Error(unsupported);
           abort.signal.throwIfAborted();
+          const recognition = startWhisper();
           const loaded = await loadLocal(progress => {
             if (state.destroyed) return;
             state.progress = progress; render(); emit({ type: 'progress', progress });
-          }, abort.signal,game);
+          }, abort.signal,game,recognition);
           if (state.destroyed) { loaded.dispose(); throw new DOMException('Voice setup cancelled.', 'AbortError'); }
           runtime = loaded; voice.adapters = loaded.adapters; state.mode = 'local'; state.progress = null; state.game = loaded.getGame();
           voice.finishDownload(); emit({ type: 'mode', mode: 'local' });
         } catch (error) {
+          whisper?.dispose(); whisper = undefined; prefetching = false;
           if (!state.destroyed) { state.progress = null; voice.downloadFailed(error); }
           throw error;
         } finally { pending = undefined; }
@@ -220,9 +267,13 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
       if (pending) throw Error('Wait for local voice to finish loading.');
       voice.ask(text);
     },
-    stop() { assertLive(); if (!pending) voice.stop(); },
+    stop() {
+      assertLive(); if (!pending) voice.stop();
+      player.stop(); scene.clear(); state.selectedControl = null;
+      render();
+    },
     repeat() { assertLive(); if (!pending) voice.repeat(); },
-    highlight(id) { assertLive(); if (id !== null) requireControl(id); player.stop(); state.selectedControl = id; scene.highlight(id ?? undefined); },
+    highlight(id) { assertLive(); if (id !== null) requireControl(id); player.stop(); state.selectedControl = id; if (id) player.showSpokenStep({ action: 'highlight', controlId: id, say: requireControl(id).description },1100); },
     selectControl(id) { select(id, 'virtual'); },
     action(reply) { assertLive(); const validated = validateReply(reply); if (pending) throw Error('Wait for local voice to finish loading.'); voice.stop(); player.start(replySteps(validated)); },
     setView(view) { assertLive(); if (!['front','shoulders','rear'].includes(view)) throw Error('Unsupported camera view.'); scene.view(view); },
@@ -232,7 +283,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
       if (kind === 'click' && c.motion !== 'stick') throw Error('Stick-click exercises need a stick.');
       if (pending) throw Error('Wait for local voice to finish loading.');
       voice.stop(); state.lesson = transitionLesson(state.lesson, { type: 'start', kind, target: id }); applyLesson();
-      if (kind === 'click') scene.animate(id);
+      if (kind === 'click') player.showSpokenStep({ action: 'press', controlId: id, say: c.description },1100);
     },
     setHints(enabled) { assertLive(); state.lesson = transitionLesson(state.lesson, { type: 'hints', enabled }); applyLesson(); },
     setCaptions(enabled) { assertLive(); captions = enabled; render(); },
@@ -247,12 +298,24 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     enableGamepad(enabled) { assertLive(); if (enabled) physical.start(); else physical.stop(); },
     destroy() {
       if (state.destroyed) return;
-      state.destroyed = true; abort.abort(); player.stop(); voice.dispose(); runtime?.dispose(); physical.stop(); scene.dispose();
+      state.destroyed = true; activeDemonstrations.delete(container); abort.abort(); player.stop(); voice.dispose(); runtime?.dispose(); whisper?.dispose(); physical.stop(); scene.dispose();
       emit({ type: 'destroyed' });
       for (const listener of subscriptions) events.removeEventListener('sidekick', listener);
       subscriptions.clear(); root.replaceChildren(); activeMounts.delete(container);
     },
   };
+  exit.onclick = () => {
+    const focused = root.activeElement === exit;
+    api.stop();
+    if (focused) button.focus({ preventScroll: true });
+  };
+  document.addEventListener('keydown',event => {
+    if (event.key !== 'Escape' || event.defaultPrevented || Array.from(activeDemonstrations).at(-1) !== container) return;
+    event.preventDefault();
+    const focused = root.activeElement === exit;
+    api.stop();
+    if (focused) button.focus({ preventScroll: true });
+  },{ signal: abort.signal });
   button.onclick = () => {
     if (state.mode !== 'local') {
       if (!consentPrompt) { consentPrompt = true; render(); return; }
@@ -261,7 +324,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     else void api.startRecording();
   };
   // A phone may background the page mid-loop or mid-inference. Never keep a demonstration running there.
-  const visibility = () => { if (document.hidden && !pending) { voice.stop(); player.stop(); } };
+  const visibility = () => { if (document.hidden) api.stop(); };
   document.addEventListener('visibilitychange',visibility,{ signal: abort.signal });
   // Accessible controls stay off screen until keyboard focus enters the group.
   for (const c of controls) {
@@ -271,5 +334,13 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   }
   render();
   if (options.gamepad !== false) physical.start();
+  if (options.autoInitializeVoice === true) {
+    // This explicit host opt-in is authorization to download, never to record or play audio.
+    void api.initializeVoice({ consent: true }).catch(() => { /* Contextual error is already shown; exploration remains available. */ });
+  } else if (options.prefetchWhisper !== false) {
+    void capabilities().then(unsupported => {
+      if (!unsupported && !state.destroyed && !pending && !runtime) startWhisper();
+    }).catch(() => { /* An unsupported browser must keep controller exploration working. */ });
+  }
   return api;
 }

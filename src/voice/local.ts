@@ -5,6 +5,7 @@ import type { Progress, VoiceAdapters } from './types';
 import { modelConfig } from './config';
 export class WorkerRPC {
   private sequence = 0;
+  private disposed = false;
   private pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
   constructor(private worker: Worker, private progress: (p: Progress) => void) {
     worker.onmessage = ({ data }) => {
@@ -17,15 +18,29 @@ export class WorkerRPC {
     worker.onerror = () => this.dispose('Audio worker failed. Please reload and retry.');
   }
   request<T>(op: string, payload: object = {}): Promise<T> {
+    if (this.disposed) return Promise.reject(Error('Worker stopped.'));
     const id = ++this.sequence;
     return new Promise((resolve, reject) => { this.pending.set(id, { resolve, reject }); this.worker.postMessage({ id, op, ...payload }); });
   }
-  dispose(reason = 'Worker stopped.') { this.worker.terminate(); for (const p of this.pending.values()) p.reject(Error(reason)); this.pending.clear(); }
+  dispose(reason = 'Worker stopped.') { if (this.disposed) return; this.disposed = true; this.worker.terminate(); for (const p of this.pending.values()) p.reject(Error(reason)); this.pending.clear(); }
+}
+export interface WhisperRuntime { ready: Promise<void>; transcribe(pcm: Float32Array): Promise<string>; dispose(): void }
+/** Downloads/initializes recognition only. Does not request microphone access or create audio playback. */
+export function prefetchWhisper(progress: (p: Progress) => void, signal?: AbortSignal): WhisperRuntime {
+  signal?.throwIfAborted();
+  const rpc = new WorkerRPC(new Worker(new URL('../workers/audio.worker.ts', import.meta.url), { type: 'module' }), progress);
+  const onAbort = () => rpc.dispose('Voice setup cancelled.');
+  signal?.addEventListener('abort', onAbort, { once: true });
+  const dispose = () => { signal?.removeEventListener('abort', onAbort); rpc.dispose(); };
+  const ready = rpc.request<void>('init-asr');
+  // A background prefetch can fail before its caller is ready to await it.
+  void ready.catch(dispose);
+  return { ready, transcribe: pcm => rpc.request<string>('transcribe', { pcm }), dispose };
 }
 export interface LocalRuntime { adapters: VoiceAdapters; setGame(game: GameSelection): void; getGame(): string | null; dispose(): void }
-export async function loadLocal(progress: (p: Progress) => void, signal?: AbortSignal, game: GameSelection = null): Promise<LocalRuntime> {
+export async function loadLocal(progress: (p: Progress) => void, signal?: AbortSignal, game: GameSelection = null, whisper?: WhisperRuntime): Promise<LocalRuntime> {
   signal?.throwIfAborted();
-  const asr = new WorkerRPC(new Worker(new URL('../workers/audio.worker.ts', import.meta.url), { type: 'module' }), progress);
+  const asr = whisper ?? prefetchWhisper(progress,signal);
   const speech = new WorkerRPC(new Worker(new URL('../workers/audio.worker.ts', import.meta.url), { type: 'module' }), progress);
   const llmWorker = new Worker(new URL('../workers/llm.worker.ts', import.meta.url), { type: 'module' });
   let cleaned = false;
@@ -38,7 +53,7 @@ export async function loadLocal(progress: (p: Progress) => void, signal?: AbortS
   let engine: WebWorkerMLCEngine;
   let knowledge: Awaited<ReturnType<typeof loadKnowledge>>;
   try {
-    progress({ stage: 'Whisper · downloading speech recognition' }); await guard(asr.request('init-asr'));
+    progress({ stage: 'Whisper · downloading speech recognition' }); await guard(asr.ready);
     progress({ stage: 'Qwen · downloading tutor' });
     const { CreateWebWorkerMLCEngine } = await import('@mlc-ai/web-llm');
     engine = await guard(CreateWebWorkerMLCEngine(llmWorker, modelConfig.tutor, { initProgressCallback: p => progress({ stage: p.text, progress: p.progress * 100 }) }));
@@ -53,7 +68,7 @@ export async function loadLocal(progress: (p: Progress) => void, signal?: AbortS
   },game); } catch (error) { cleanup(); throw error; }
   return {
     adapters: {
-      recognition: { transcribe: pcm => asr.request<string>('transcribe', { pcm }) },
+      recognition: { transcribe: pcm => asr.transcribe(pcm) },
       synthesis: { synthesize: text => speech.request('synthesize', { text }) },
       tutor: {
         reply: text => tutor.reply(text),

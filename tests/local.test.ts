@@ -1,6 +1,34 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { capabilities, loadLocal, WorkerRPC } from '../src/voice/local';
+import { capabilities, loadLocal, prefetchWhisper, WorkerRPC } from '../src/voice/local';
 afterEach(()=>vi.unstubAllGlobals());
+it('prefetches only recognition and reuses the same worker during full setup, with idempotent abort cleanup',async()=> {
+  const workers:any[]=[];
+  class PendingWorker {
+    onmessage:any; onerror:any; terminate=vi.fn(); postMessage=vi.fn();
+    constructor(){workers.push(this);}
+  }
+  vi.stubGlobal('Worker',PendingWorker);
+  const abort=new AbortController();
+  const whisper=prefetchWhisper(()=>{},abort.signal);
+  expect(workers).toHaveLength(1);expect(workers[0].postMessage).toHaveBeenCalledWith({id:1,op:'init-asr'});
+  const loading=loadLocal(()=>{},abort.signal,null,whisper);const rejected=expect(loading).rejects.toThrow('cancelled');
+  expect(workers).toHaveLength(3);
+  expect(workers.flatMap(worker=>worker.postMessage.mock.calls).filter(([message])=>message.op==='init-asr')).toHaveLength(1);
+  abort.abort();await rejected;whisper.dispose();
+  workers.forEach(worker=>expect(worker.terminate).toHaveBeenCalledOnce());
+});
+it('cleans up a failed background prefetch without an unhandled rejection',async()=> {
+  let worker:any;
+  class FailedWorker {
+    onmessage:any; onerror:any; terminate=vi.fn();
+    constructor(){worker=this;}
+    postMessage(message:any){queueMicrotask(()=>this.onmessage({data:{id:message.id,error:'Download failed'}}));}
+  }
+  vi.stubGlobal('Worker',FailedWorker);
+  const whisper=prefetchWhisper(()=>{});
+  await expect(whisper.ready).rejects.toThrow('Download failed');
+  whisper.dispose();expect(worker.terminate).toHaveBeenCalledOnce();
+});
 it('reports unsupported WebGPU without a browser speech fallback',async()=> {
   vi.stubGlobal('isSecureContext',true);vi.stubGlobal('MediaRecorder',class{});
   vi.stubGlobal('navigator',{mediaDevices:{getUserMedia(){} }});

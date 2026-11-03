@@ -1,10 +1,10 @@
 # Embedding Sidekick
 
-The default page is the embedded unit: an interactive controller and a Record button. There is no header, navigation, tutor panel or lesson dashboard. Temporary-model/development labels remain visible until real assets/local voice are used. Captions are off by default. Download consent, loading, listening and errors appear as short contextual messages.
+The embedded unit contains an interactive controller and a Record button. An X appears while a demonstration is active. Click it or press Escape to stop the animation and narration, clear the highlight and ease back to the front view. Escape is left alone when no demonstration is active; with multiple active instances it closes the most recently active one. Captions are off by default. Consent, loading, listening and errors appear as short contextual messages.
 
 ## Build and mount
 
-Run `npm ci` and `npm run build`. Deploy the **entire `dist/` directory**, preserving relative paths, on the host site's origin. `dist/sidekick.js` is the public ESM entry, `dist/types/index.d.ts` contains types, and sibling `assets/` contains shared chunks, workers and WASM. Copying only the entry file will not work. Model weights are downloaded separately after consent. Do not serve worker scripts from a different origin. No npm package is published yet; the repository package export points to the built entry for local integration.
+Run `npm ci` and `npm run build`. Deploy the **entire `dist/` directory**, preserving relative paths, on the host site's origin. `dist/sidekick.js` is the public ESM entry, `dist/types/index.d.ts` contains types, and sibling `assets/` contains shared chunks, workers and WASM. Copying only the entry file will not work. Recognition weights preload by default; the large model downloads require consent or explicit host opt-in as described below. Do not serve worker scripts from a different origin. No npm package is published yet; the repository package export points to the built entry for local integration.
 
 ```html
 <div id="controller-tutor" style="width:100%;height:480px"></div>
@@ -44,7 +44,7 @@ All functions are typed through `Sidekick` and `createSidekick`. Calls after des
 | `initializeVoice({ consent: true })` | Explicitly download/cache and initialise all three local models. Deduplicates concurrent calls, rejects on capability/download errors and emits progress. Destroying the instance aborts initialization. |
 | `startRecording()` / `finishRecording()` | Start/finish a turn; first microphone access follows the host's user gesture. Finish while permission is pending cancels the request. |
 | `ask(text)` | Submit up to 1200 characters. Uses the labelled deterministic tutor until local voice has been explicitly initialised. Local mode generates and speaks on device. |
-| `stop()` / `repeat()` | Stop the current turn/playback or repeat the last valid spoken reply. Stop does not cancel model setup; destroy the instance to abort setup. |
+| `stop()` / `repeat()` | Stop the current turn, animation and narration, clear the highlight and ease back to front; or repeat the last valid reply and its steps. Stop does not cancel model setup; destroy the instance to abort setup. |
 | `highlight(controlIdOrNull)` | Highlight/reveal a control or clear the highlight. |
 | `selectControl(controlId)` | Treat host UI selection as **virtual** input; animate it and update the exercise. This cannot forge a confirmed physical press. |
 | `action(reply)` | Execute a validated structured controller action, without generating or speaking text. `spoken` is required by the shared schema but is not spoken by this function. |
@@ -55,7 +55,7 @@ All functions are typed through `Sidekick` and `createSidekick`. Calls after des
 | `setGame(gameOrNull)` | Explicitly select `overcooked2`, `fortnite`, or `active` (the runtime pack configuration); `null` restores controller-only mode. Cancels playback and clears conversation/lesson state. Local questions that name an available game also establish context. |
 | `setPlayback({ speed, maxRepeats })` | Set animation speed (`slow`, `medium`, `fast`) and total visual passes (positive integer or `null` for unlimited). Defaults: medium/unlimited. Cancels the current demonstration; settings apply to the next one. Narration is spoken once, independently of silent visual repeats. |
 | `enableGamepad(boolean)` | Enable/disable live standard-mapped Gamepad API input. Enabled by default; disabling clears held controls. |
-| `getState()` / `getControls()` | Inspect phase, mode, selected control, lesson, caption, error, download progress and controller facts. |
+| `getState()` / `getControls()` | Inspect phase, mode, selected control, lesson, caption, error, download progress, `demonstrating` and controller facts. |
 | `on(listener)` | Subscribe to typed events; returns an unsubscribe function. |
 | `destroy()` | Abort and release resources, clear the component, emit `destroyed`, detach subscriptions. |
 
@@ -89,9 +89,15 @@ Real local replies contain `spoken`, `found`, `actionId`, `steps`, and `jargon`.
 
 ## Voice consent and browser gestures
 
-The default Record button first displays the download explanation, then changes to **Download local voice**. That second click explicitly downloads the models, with no microphone capture or playback. After loading it returns to Record. A later click requests the microphone and starts a recording. Click again to finish. Busy recording/playback can be interrupted by starting a new recording. Keyboard-accessible controller buttons appear when focused with Tab.
+By default, capable browsers preload Whisper in one worker on mount and show recognition download progress without blocking controller exploration. Full setup reuses that worker and its initialization promise; it does not initialize Whisper twice. Mount with `{ prefetchWhisper: false }` to disable the background download. Unsupported browsers silently skip prefetch and retain controller exploration. A failed preload can be retried through Record.
 
-For a host-controlled setup button, display the same first-use information (large downloads, on-device processing, cache reuse) and call `initializeVoice({ consent: true })` only after consent. Do not call it automatically on page load. Call `startRecording()`, local `ask()` and `repeat()` from a real user gesture to satisfy browser microphone/playback policy. Subscribing to events or highlighting a control needs no gesture.
+Without host opt-in, the first Record click displays the large-download explanation, then changes to **Download local voice**. The second click initializes the remaining models using the existing Whisper worker. Setup performs no microphone capture or playback. Once ready, a Record click requests microphone permission and starts recording. Click again to finish. Busy recording/playback can be interrupted by starting a new recording. Keyboard-accessible controller buttons appear when focused with Tab.
+
+The first-party demo mounts with `{ autoInitializeVoice: true }`. This explicit host option authorizes the full download on page open and displays progress and download-size information. Other hosts must disclose the large downloads and obtain their own authorization before enabling that option. Otherwise keep it unset and use the component's consent flow, or call `initializeVoice({ consent: true })` from a host-controlled consent action. Initialization calls are deduplicated. Destroying the instance aborts both background prefetch and foreground setup and terminates their workers. Auto-start failures are caught and displayed contextually; the controller remains usable and manual retry is available.
+
+Downloads never grant recording/playback permission. Call `startRecording()`, local `ask()` and `repeat()` from a real user gesture to satisfy browser microphone/playback policy. Subscribing to events or highlighting a control needs no gesture.
+
+Visual repeats remain medium/unlimited by default. X, Escape and `stop()` exit immediately and start the return to front; a finite sequence settles after 3.5 seconds of inactivity. The controller has no automatic idle rotation or floating. Manual dragging is preserved until an explicit exit or a new demonstration reframes it. The X is a 44-pixel button with a keyboard label, focus indicator and Escape shortcut. Closing it restores focus to Record when appropriate. Downloading continues if an animation is stopped during setup.
 
 There is no network API or HTTP inference service. These are browser-side JavaScript functions. For an iframe, this version does not provide a cross-origin `postMessage` bridge; prefer direct same-origin mounting. If adding a bridge later, allowlist parent origins and commands and never permit a message alone to grant model-download consent or forge physical input.
 
