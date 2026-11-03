@@ -1,0 +1,27 @@
+{
+  "name": "sidekick-controller-tutor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.2",
+    "@mlc-ai/web-llm": "0.2.87",
+    "kokoro-js": "1.2.1",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.183.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.1.0"
+  },
+  "overrides": {
+    "sharp": "0.35.5"
+  }
+}
