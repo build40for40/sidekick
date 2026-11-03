@@ -54,12 +54,34 @@ All functions are typed through `Sidekick` and `createSidekick`. Calls after des
 | `setCaptions(boolean)` | Opt into captions inside the component; alternatively render host captions from reply events. |
 | `setGame(gameOrNull)` | Explicitly select `overcooked2`, `fortnite`, or `active` (the runtime pack configuration); `null` restores controller-only mode. Cancels playback and clears conversation/lesson state. Local questions that name an available game also establish context. |
 | `setPlayback({ speed, maxRepeats })` | Set animation speed (`slow`, `medium`, `fast`) and total visual passes (positive integer or `null` for unlimited). Defaults: medium/unlimited. Cancels the current demonstration; settings apply to the next one. Narration is spoken once, independently of silent visual repeats. |
-| `enableGamepad(boolean)` | Enable/disable actual standard-mapped Gamepad API input. |
+| `enableGamepad(boolean)` | Enable/disable live standard-mapped Gamepad API input. Enabled by default; disabling clears held controls. |
 | `getState()` / `getControls()` | Inspect phase, mode, selected control, lesson, caption, error, download progress and controller facts. |
 | `on(listener)` | Subscribe to typed events; returns an unsubscribe function. |
 | `destroy()` | Abort and release resources, clear the component, emit `destroyed`, detach subscriptions. |
 
-The event union includes `phase`, `progress`, `mode`, `transcript`, `reply`, `error`, `timing`, `selection`, `lesson`, `view`, `gamepad` and `destroyed`. Host text input, captions, stop/repeat and lesson UI can be completely separate from the embedded view. Virtual and physical input remain distinguishable through selection and lesson events. Permission, model and inference errors are emitted and shown in the component. Synchronous validation errors throw; initialization errors also reject its promise. Questions and recording requests during setup are rejected.
+The event union includes `phase`, `progress`, `mode`, `transcript`, `reply`, `error`, `timing`, `selection`, `lesson`, `view`, `gamepad`, `gamepad-input` and `destroyed`. Host text input, captions, stop/repeat and lesson UI can be completely separate from the embedded view. Virtual and physical input remain distinguishable through selection and lesson events. Permission, model and inference errors are emitted and shown in the component. Synchronous validation errors throw; initialization errors also reject its promise. Questions and recording requests during setup are rejected.
+
+## Live controller feedback
+
+Pair the controller with macOS through Bluetooth (or connect over USB), open the focused Sidekick page over HTTPS or localhost, then press a controller button to let the browser expose the device. This uses `navigator.getGamepads()`; the application does not pair Bluetooth devices itself. Live input starts on mount and needs no voice models or downloads. Mount with `{ gamepad: false }` to opt out, or call `enableGamepad(false)` later. No connection panel, button or status element is added to the embedded view.
+
+Buttons remain depressed while held; triggers use their 0–1 values; sticks tilt in both axes with a radial 12% dead zone rescaled to full travel. Stick clicks remain separate physical button events. Multiple controls can move and highlight simultaneously. Active input takes visual priority over demonstrations and stops an existing visual loop when activity begins. It does not automatically change camera view. Reduced motion retains highlights while leaving the model transforms at rest.
+
+`getState().gamepad` contains `status`, `controller` (`index`, browser-provided `id`, `mapping`, or `null`) and `controls`. Status is `disabled`, `waiting`, `connected`, `unsupported`, `unavailable`, or `suspended`. Each mapped control has `controlId`, `pressed`, `value`, and, for sticks, `axes: [x, y]` (right/down positive). State contains all mapped controls, including neutral values; unmapped touchpad/mute input is omitted. `gamepad-input` events carry `{ type: 'gamepad-input', state }` only when this snapshot changes. The existing `gamepad` event carries a descriptive message on enabled status transitions. Initial events happen during mount, so use `getState().gamepad` after subscribing for the initial snapshot. Snapshots contain device identifiers only in memory; nothing is uploaded or persisted.
+
+The first available standard-mapped device is selected and retained until it disconnects; additional devices are not merged. Unsupported mappings never drive the PS5 model. Standard mapping represents button positions, not device-specific branding: this revision displays the existing PS5 labels even for other standard-mapped controllers. Controller-specific artwork/profiles and a device selector are not implemented. Buttons reserved by macOS/browser, touchpad gestures, motion sensors, haptics and adaptive triggers are not guaranteed or implemented.
+
+The first sample on connection, re-enabling or return from a hidden page establishes a baseline. Held inputs render immediately but do not count as new physical presses for exercises. Subsequent press edges emit physical `selection` events; stick tilt alone cannot complete a stick-click exercise. Disconnect, disable and backgrounding clear live state; backgrounding pauses polling and returning resumes it. `destroy()` removes the input listeners and cancels polling. A browser policy error or missing API emits `unavailable` without claiming a controller connection. An iframe host must permit the `gamepad` Permissions Policy feature. Actual macOS Bluetooth/browser compatibility still requires a physical-device check.
+
+```ts
+const tutor = createSidekick(container); // Live controller feedback is on.
+const off = tutor.on(event => {
+  if (event.type === 'gamepad-input') console.log(event.state);
+});
+console.log(tutor.getState().gamepad); // Initial snapshot.
+// tutor.enableGamepad(false);
+// off(); tutor.destroy();
+```
 
 Mount options also accept `game` and `playback`. Leaving `game` unset never selects the game's configured default. `setGame('active')` is an explicit request to use `knowledge/active-game.json`; changing that JSON and rebuilding switches the default pack without application-code changes. Vite emits runtime knowledge files as separate assets; deploy them alongside the ESM entry and workers. The master PS5 labels and geometry are built together.
 

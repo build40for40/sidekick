@@ -18,6 +18,8 @@ npm run preview
 
 Use a current Node 22 LTS release (22.12 or newer) or Node 24 LTS. Local verification also used Node 26. Open the local Vite URL. No API keys or environment variables are needed. CI runs tests and production builds.
 
+Live controller feedback is enabled by default. Pair a controller with macOS over Bluetooth (or connect by USB), focus the page, then press a controller button. Standard-mapped inputs drive simultaneous button holds, trigger travel and stick movement on the existing PS5 model. No voice setup is needed. See [live controller feedback](docs/EMBEDDING.md#live-controller-feedback) for the host API, mapping limitations and physical-device verification status.
+
 ## Embedded unit
 
 The default UI contains the controller and a Record button. First-use consent, loading and errors appear only when needed. Captions are opt-in. The host site supplies text input, lessons, navigation and any other surrounding UI through the public API.

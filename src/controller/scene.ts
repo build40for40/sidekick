@@ -11,7 +11,8 @@ import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer
 import { manifest, controls, byId, type View } from './manifest';
 import { replySteps, type TutorReply, type TutorStep } from '../tutor/schema';
 
-interface Rest { position: THREE.Vector3; quaternion: THREE.Quaternion }
+import { applyInputMotion, type Rest } from './input-motion';
+import { inputActive, type ControlInput } from './gamepad';
 type MotionKind = 'press' | 'hold' | 'squeeze' | 'tilt';
 interface Motion { id: string; kind: MotionKind; start: number; duration: number; times: number; direction?: TutorStep['direction']; flashed: number; resolve?: () => void }
 interface Ripple { sprite: THREE.Sprite; start: number }
@@ -85,6 +86,7 @@ export class ControllerScene {
   private selected?: string;
   private hovered?: string;
   private hints = true;
+  private physical: ControlInput[] = [];
   private focus = 0; // 0 = studio lighting, 1 = spotlight on the selected control
   private hemi = new THREE.HemisphereLight(0xe8e4ff, 0x1b1426, .5);
   private key = new THREE.DirectionalLight(0xffffff, 1.8);
@@ -261,10 +263,21 @@ export class ControllerScene {
 
   highlight(id?:string) {
     this.selected = id;
-    for (const [key, label] of this.labelNodes) label.classList.toggle('active', this.hints && key === id);
-    if (id && this.nodes.has(id)) this.frame(id);
+    this.updateHighlights();
+    if (id && this.nodes.has(id) && !this.physical.some(inputActive)) this.frame(id);
   }
-  showHints(enabled:boolean) { this.hints = enabled; this.highlight(this.selected); }
+  private updateHighlights() {
+    const active = new Set(this.physical.filter(inputActive).map(input => input.controlId));
+    for (const [id, label] of this.labelNodes) label.classList.toggle('active', active.size ? active.has(id) : this.hints && id === this.selected);
+  }
+  setPhysicalInput(inputs: ControlInput[]) {
+    this.physical = inputs;
+    if (inputs.some(inputActive)) {
+      this.targetCamera = undefined; this.autoFramed = false; this.lastInteraction = performance.now();
+    }
+    this.updateHighlights();
+  }
+  showHints(enabled:boolean) { this.hints = enabled; this.updateHighlights(); }
   clear() { this.clearDemonstration(); this.view('front'); }
 
   act(reply:TutorReply) {
@@ -348,6 +361,10 @@ export class ControllerScene {
 
   private render() {
     const now = performance.now(); const dt = Math.min((now - this.lastFrame) / 1000, .05); this.lastFrame = now; const time = now / 1000;
+    const active = new Set(this.physical.filter(inputActive).map(input => input.controlId));
+    for (const [id, node] of this.nodes) {
+      const rest = this.rests.get(id)!; node.position.copy(rest.position); node.quaternion.copy(rest.quaternion);
+    }
     if (this.targetCamera) {
       const k = 1 - Math.pow(.0012, dt);
       this.orbit.target.lerp(this.targetLook, k);
@@ -358,10 +375,14 @@ export class ControllerScene {
       this.camera.position.setFromSpherical(from).add(this.orbit.target);
       if (this.camera.position.distanceTo(this.targetCamera) < .01) this.targetCamera = undefined;
     }
-    const pressed = this.applyMotion(now);
+    const pressed = active.size ? 0 : this.applyMotion(now);
+    if (active.size) for (const input of this.physical) {
+      const node = this.nodes.get(input.controlId), rest = this.rests.get(input.controlId), control = byId.get(input.controlId);
+      if (node && rest && control) applyInputMotion(node, rest, control, input, this.reduced);
+    }
 
     // Lighting crossfade: the stage dims and the spotlight finds the selected control.
-    const wantFocus = this.selected && this.hints ? 1 : 0;
+    const wantFocus = !active.size && this.selected && this.hints ? 1 : 0;
     this.focus += (wantFocus - this.focus) * (1 - Math.pow(.004, dt));
     this.scene.environmentIntensity = THREE.MathUtils.lerp(.55, .16, this.focus) * LUMA;
     this.hemi.intensity = THREE.MathUtils.lerp(.5, .1, this.focus) * LUMA;
@@ -384,8 +405,8 @@ export class ControllerScene {
     // Glow: pulse on the selected control, a flash at the bottom of each press, a hint on hover.
     const pulse = this.reduced ? .7 : .55 + .45 * Math.sin(time * 4);
     for (const [id, mats] of this.glowMaterials) {
-      const isSel = this.hints && id === this.selected, isHover = id === this.hovered;
-      const intensity = isSel ? 3 + 2.5 * pulse + (this.motion?.id === id ? 7 * pressed : 0) : isHover ? .8 : 0;
+      const isSel = !active.size && this.hints && id === this.selected, isHover = id === this.hovered;
+      const intensity = active.has(id) ? 5 : isSel ? 3 + 2.5 * pulse + (this.motion?.id === id ? 7 * pressed : 0) : isHover ? .8 : 0;
       for (const mat of mats) { mat.emissive.copy(this.motion?.id === id && pressed > .9 ? ACCENT_HOT : ACCENT); mat.emissiveIntensity = intensity * LUMA; }
     }
     const haloMat = this.halo.material as THREE.SpriteMaterial;
