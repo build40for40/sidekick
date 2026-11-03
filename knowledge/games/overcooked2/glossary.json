@@ -1,0 +1,14 @@
+{
+  "game": "overcooked2",
+  "note": "Kitchen and game words translated for someone who doesn't play. `actions` links to ids in controls.json. All terms start verified: false until Samira approves them.",
+  "terms": [
+    { "term": "the pass",     "means": "The serving hatch where you hand in finished plates",                      "actions": ["serve"],             "verified": false },
+    { "term": "plate it up",  "means": "Put the cooked food onto a clean plate so it's ready to serve",          "actions": ["pick_up", "put_down"], "verified": false },
+    { "term": "ticket",       "means": "An order along the top of the screen showing what dish to make next",    "actions": [],                    "verified": false },
+    { "term": "tips",         "means": "Extra points for serving orders quickly and in the right order",         "actions": [],                    "verified": false },
+    { "term": "stars",        "means": "Your score for the level: up to three, and you need enough to unlock more levels", "actions": [],          "verified": false },
+    { "term": "burnt",        "means": "Food left cooking too long. It's ruined, and next it catches fire",       "actions": [],                    "verified": false },
+    { "term": "dirty plates", "means": "Plates come back dirty after serving and must be washed before reuse",    "actions": ["wash"],              "verified": false },
+    { "term": "pass it",      "means": "Throw the food to a teammate across the counter",                         "actions": ["throw"],             "verified": false }
+  ]
+}

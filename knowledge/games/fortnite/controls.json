@@ -6,6 +6,9 @@
   "preset": "Builder Pro (the usual default; Combat Pro has the same combat buttons)",
   "source": "Builder Pro PS4/PS5 tables in Outsider Gaming's Fortnite controls guide (https://outsidergaming.com/fortnite-complete-controls-guide-pc-xbox-one-ps4-switch-and-mobile/), checked 3 Nov 2026. Epic's own help page only lists the preset names (Old School, Quick Builder, Combat Pro, Builder Pro, Custom): https://www.epicgames.com/help/en-US/c-202300000001636/c-202300000001721/how-to-configure-a-controller-in-fortnite-a202300000017260",
   "note": "verified: \"device\" = checked on a real PS5 controls screen. \"web\" = taken from the published source above; OK to use for the demo, but check on a PS5 when you can (the source dates from before Zero Build launched). false = a guess; the LLM must not use it. Players can remap buttons, so these are defaults only.",
+  "coach_notes": [
+    "We teach Zero Build by default. If someone asks about building, still help, but say it only works in normal Build matches, not Zero Build."
+  ],
   "modes": {
     "zero_build": "Zero Build: normal play with no building. Moving, shooting, picking things up. This is the mode we're teaching.",
     "build": "Build mode: placing walls, floors, stairs and roofs. Only in normal Build matches, not Zero Build."
