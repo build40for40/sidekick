@@ -25,7 +25,7 @@ describe('turn orchestration',()=> {
     const steps=[{action:'press' as const,controlId:'cross',say:'Put it down.'},{action:'press' as const,controlId:'square',say:'Chop it.'}];
     vi.mocked(a.tutor.reply).mockResolvedValue({spoken:'Here are the steps.',found:true,actionId:'chop',steps,jargon:null});
     voice.ask('How do I chop it?');await flush();
-    expect(a.synthesis.synthesize).toHaveBeenCalledTimes(1);expect(events.filter(e=>e.type==='step')).toHaveLength(0);
+    expect(a.synthesis.synthesize).toHaveBeenCalledTimes(2);expect(events.filter(e=>e.type==='step')).toHaveLength(0);
     sources[0].onended!();await flush();expect(a.synthesis.synthesize).toHaveBeenNthCalledWith(2,'Put it down.');
     expect(events.filter(e=>e.type==='step')).toMatchObject([{index:0,step:steps[0]}]);
     sources[1].onended!();await flush();expect(a.synthesis.synthesize).toHaveBeenNthCalledWith(3,'Chop it.');
@@ -38,8 +38,9 @@ describe('turn orchestration',()=> {
     const events:VoiceEvent[]=[];const voice=new VoiceOrchestrator(e=>events.push(e));const a=adapters();voice.adapters=a;
     vi.mocked(a.tutor.reply).mockResolvedValueOnce({spoken:'Start.',found:true,actionId:null,steps:[{action:'press',controlId:'left-stick',say:'Click it.'}],jargon:null});
     voice.ask('old');await flush();voice.ask('new');await flush();
-    expect(a.synthesis.synthesize).toHaveBeenCalledTimes(2);
-    expect(a.synthesis.synthesize).not.toHaveBeenCalledWith('Click it.');expect(plays).toBe(2);
+    expect(a.synthesis.synthesize).toHaveBeenCalledTimes(3);
+    // The old instruction may be prefetched, but it must never play or cue an animation.
+    expect(a.synthesis.synthesize).toHaveBeenCalledWith('Click it.');expect(plays).toBe(2);
     expect(events.filter(e=>e.type==='step')).toHaveLength(0);voice.stop();
   });
   it('ignores a stale generation after a new question',async()=> {
@@ -70,4 +71,24 @@ describe('turn orchestration',()=> {
     vi.mocked(a.tutor.reply).mockResolvedValue({spoken:'Raw bad output',action:'arbitrary'} as any);
     voice.ask('test');await flush();expect(voice.phase).toBe('error');expect(a.synthesis.synthesize).not.toHaveBeenCalled();expect(events.some(e=>e.type==='reply')).toBe(false);
   });
+});
+it('starts the next question without waiting for cancelled synthesis to finish', async () => {
+  const events:VoiceEvent[]=[]; const voice = new VoiceOrchestrator(e => events.push(e)), a = adapters(); voice.adapters = a;
+  const old = deferred<any>(); vi.mocked(a.synthesis.synthesize).mockImplementationOnce(() => old.promise);
+  a.interrupt = vi.fn();
+  voice.ask('old'); await flush(); voice.ask('new'); await flush();
+  expect(plays).toBe(1); expect(a.interrupt).toHaveBeenCalled();
+  old.resolve({pcm:new Float32Array(10),sampleRate:24000}); await flush();
+  expect(plays).toBe(1); voice.stop();
+});
+it('plays a validated first sentence while preparing the second and preserves step timing', async () => {
+  const events:VoiceEvent[]=[]; const voice = new VoiceOrchestrator(e => events.push(e)), a=adapters(); voice.adapters=a;
+  vi.mocked(a.tutor.reply).mockResolvedValue({ spoken:'Look at the top. There are two bumpers.', action:'highlight', controlId:'r1' });
+  const second = deferred<any>();
+  vi.mocked(a.synthesis.synthesize).mockImplementationOnce(async () => ({pcm:new Float32Array(10),sampleRate:24000})).mockImplementationOnce(() => second.promise);
+  voice.ask('where'); await flush();
+  expect(plays).toBe(1); expect(a.synthesis.synthesize).toHaveBeenNthCalledWith(2,'There are two bumpers.');
+  sources[0].onended!(); await flush(); expect(plays).toBe(1);
+  second.resolve({pcm:new Float32Array(10),sampleRate:24000}); await flush(); expect(plays).toBe(2);
+  sources[1].onended!(); await flush(); expect(voice.phase).toBe('ready');
 });

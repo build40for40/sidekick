@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-03",
+  "scope": "Synthetic speech; not microphone capture, playback scheduling or acoustic latency",
+  "environment": { "browser": "Chrome 156.0.0.0", "os": "macOS", "gpuVendor": "apple", "gpuArchitecture": "metal-3", "logicalProcessors": 15, "crossOriginIsolated": true },
+  "phrase": "Where is the right bumper?",
+  "audioSecondsAfterTrim": 1.58,
+  "tutorResident": "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+  "recognitionModel": "onnx-community/whisper-tiny.en",
+  "synthesisModel": "onnx-community/Kokoro-82M-v1.0-ONNX",
+  "voice": "af_heart",
+  "cache": "Browser-managed model assets; models initialized before timing; synthesis response cache disabled",
+  "gpu": {
+    "recognitionDtype": "encoder fp32 / decoder q4",
+    "synthesisDtype": "fp32",
+    "transcriptionMs": [443.905, 319.775, 354.920, 348.605, 355.535],
+    "synthesisMs": [410.565, 278.480, 281.295, 267.030, 255.190]
+  },
+  "wasm": {
+    "recognitionDtype": "q8",
+    "synthesisDtype": "q8",
+    "transcriptionMs": [1290.815, 1283.915, 1223.955, 1180.300, 1098.455],
+    "synthesisMs": [4343.455, 4691.635, 4634.090, 4897.170, 4734.950]
+  },
+  "transcripts": "All ten runs returned the supplied phrase, ignoring leading whitespace",
+  "limits": "One short synthetic phrase, five runs per configuration, serial configurations on one machine. Backends and dtypes differ. No randomized order, hardware-wide claim, robust tail percentile or semantic tutor quality result. Recorded samples rounded to 0.001 ms."
+}
