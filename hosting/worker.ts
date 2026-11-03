@@ -1,10 +1,13 @@
-interface Env {
+import { handleModelCatalog, handleTutor, type TutorEnv } from './tutor';
+interface Env extends TutorEnv {
   ASSETS: { fetch(request: Request): Promise<Response> };
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === '/sidekick/api/models') return handleModelCatalog(request, env);
+    if (url.pathname === '/sidekick/api/tutor') return handleTutor(request, env);
     if (url.pathname === '/sidekick') {
       url.pathname = '/sidekick/';
       return Response.redirect(url.href, 308);

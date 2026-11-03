@@ -3,38 +3,113 @@
   "title": "Tutor answer (multi-step)",
   "description": "Every answer the LLM gives has this shape. It extends Ben's single-step TutorReply in src/tutor/schema.ts: `spoken` stays the same, and `steps` is a list of his action/controlId pairs played in order. The animation plays each step and the voice reads its `say` line.",
   "type": "object",
-  "required": ["spoken", "found", "actionId", "steps", "jargon"],
+  "required": [
+    "spoken",
+    "summary",
+    "found",
+    "actionId",
+    "steps",
+    "jargon"
+  ],
   "additionalProperties": false,
   "properties": {
-    "spoken":   { "type": "string", "minLength": 1, "maxLength": 420, "description": "One or two friendly sentences, said first and shown on screen" },
-    "found":    { "type": "boolean", "description": "false when the answer isn't in the knowledge files. Then steps is empty and spoken says so honestly." },
-    "actionId": { "type": ["string", "null"], "description": "Action id from games/<game>.json, e.g. place_wall" },
+    "spoken": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 420,
+      "description": "One or two friendly sentences, spoken before the steps. Separate from the on-screen summary."
+    },
+    "found": {
+      "type": "boolean",
+      "description": "false when the answer isn't in the knowledge files. Then steps is empty and spoken says so honestly."
+    },
+    "actionId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Action id from games/<game>.json, e.g. place_wall"
+    },
     "steps": {
       "type": "array",
       "maxItems": 6,
       "items": {
         "type": "object",
-        "required": ["action", "controlId", "say"],
+        "required": [
+          "action",
+          "controlId",
+          "say"
+        ],
         "additionalProperties": false,
         "properties": {
-          "action":    { "type": "string", "enum": ["highlight", "press", "tilt", "squeeze"], "description": "Ben's actions. tilt only on sticks, squeeze only on triggers. Clicking a stick (L3/R3) is press on left-stick/right-stick." },
-          "controlId": { "type": "string", "description": "Control id from controllers/ps5.json" },
-          "hold":      { "type": "boolean", "description": "Keep holding instead of letting go (e.g. aim = squeeze L2 and hold)" },
-          "times":     { "type": "integer", "minimum": 1, "maximum": 3, "description": "Press more than once (e.g. 2 = double-click)" },
-          "direction": { "type": "string", "enum": ["up", "down", "left", "right"], "description": "Only with tilt" },
-          "say":       { "type": "string", "minLength": 1, "maxLength": 120, "description": "One short spoken line for this step, plain English, under 15 words" }
+          "action": {
+            "type": "string",
+            "enum": [
+              "highlight",
+              "press",
+              "tilt",
+              "squeeze"
+            ],
+            "description": "Ben's actions. tilt only on sticks, squeeze only on triggers. Clicking a stick (L3/R3) is press on left-stick/right-stick."
+          },
+          "controlId": {
+            "type": "string",
+            "description": "Control id from controllers/ps5.json"
+          },
+          "hold": {
+            "type": "boolean",
+            "description": "Keep holding instead of letting go (e.g. aim = squeeze L2 and hold)"
+          },
+          "times": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3,
+            "description": "Press more than once (e.g. 2 = double-click)"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down",
+              "left",
+              "right"
+            ],
+            "description": "Only with tilt"
+          },
+          "say": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "One short spoken line for this step, plain English, under 15 words"
+          }
         }
       }
     },
     "jargon": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "Filled when the question used gamer slang",
-      "required": ["term", "means"],
+      "required": [
+        "term",
+        "means"
+      ],
       "additionalProperties": false,
       "properties": {
-        "term":  { "type": "string" },
-        "means": { "type": "string" }
+        "term": {
+          "type": "string"
+        },
+        "means": {
+          "type": "string"
+        }
       }
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "One short on-screen description of what to do. Include essential conditions and order. Do not copy spoken or say. Not narrated."
     }
   }
 }

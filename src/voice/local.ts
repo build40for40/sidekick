@@ -1,3 +1,4 @@
+import { RemoteGenerator, type RemoteInferenceOptions } from './remote';
 import type { WebWorkerMLCEngine } from '@mlc-ai/web-llm';
 import { generationSchema } from '../tutor/schema';
 import { KnowledgeTutor, loadKnowledge, resolveGame, buildPrompt, type GameSelection } from '../tutor/knowledge';
@@ -77,36 +78,47 @@ export function prefetchWhisper(progress: (p: Progress) => void, signal?: AbortS
   return { ready,runtime,dispose };
 }
 export interface LocalRuntime { adapters: VoiceAdapters; setGame(game: GameSelection): void; getGame(): string | null; dispose(): void }
-export async function loadLocal(progress: (p: Progress) => void, signal?: AbortSignal, game: GameSelection = null, options: VoicePerformanceOptions = {}, whisper?: WhisperRuntime): Promise<LocalRuntime> {
+export function loadLocal(progress: (p: Progress) => void, signal?: AbortSignal, game: GameSelection = null, options: VoicePerformanceOptions = {}, whisper?: WhisperRuntime): Promise<LocalRuntime> {
+  return loadRuntime(progress, signal, game, options, whisper);
+}
+export function loadRemote(progress: (p: Progress) => void, signal: AbortSignal | undefined, game: GameSelection, options: VoicePerformanceOptions, whisper: WhisperRuntime | undefined, inference: RemoteInferenceOptions): Promise<LocalRuntime> {
+  return loadRuntime(progress, signal, game, options, whisper, inference);
+}
+async function loadRuntime(progress: (p: Progress) => void, signal: AbortSignal | undefined, game: GameSelection, options: VoicePerformanceOptions, whisper?: WhisperRuntime, inference?: RemoteInferenceOptions): Promise<LocalRuntime> {
   signal?.throwIfAborted();
   const settings = performanceOptions(options);
   const asr = whisper?.runtime ?? new AudioRuntime('init-asr', progress, settings.audioBackend);
   const speech = new AudioRuntime('init-tts', progress, settings.audioBackend);
-  const llmWorker = new Worker(new URL('../workers/llm.worker.ts', import.meta.url), { type: 'module' });
+  const llmWorker = inference ? undefined : new Worker(new URL('../workers/llm.worker.ts', import.meta.url), { type: 'module' });
+  const remote = inference ? new RemoteGenerator(inference) : undefined;
   let cleaned = false;
-  const cleanup = () => { if (cleaned) return; cleaned = true; whisper?.dispose(); asr.dispose(); speech.dispose(); llmWorker.terminate(); };
+  const cleanup = () => { if (cleaned) return; cleaned = true; whisper?.dispose(); asr.dispose(); speech.dispose(); remote?.dispose(); llmWorker?.terminate(); };
   let rejectAbort: (reason: unknown) => void = () => {};
   const aborted = new Promise<never>((_, reject) => { rejectAbort = reject; });
   const onAbort = () => { rejectAbort(new DOMException('Voice setup cancelled.', 'AbortError')); cleanup(); };
   signal?.addEventListener('abort', onAbort, { once: true });
   const guard = <T>(promise: Promise<T>) => Promise.race([promise, aborted]);
-  let engine: WebWorkerMLCEngine;
+  let engine: WebWorkerMLCEngine | undefined;
   let knowledge: Awaited<ReturnType<typeof loadKnowledge>>;
   let schema: string;
   let recognitionInfo: { backend: string; dtype: string }, synthesisInfo: { backend: string; dtype: string };
   try {
     progress({ stage: 'Whisper · downloading speech recognition' }); recognitionInfo = await guard(asr.init());
-    progress({ stage: `Loading tutor · ${tutorModels[settings.tutor]}` });
-    const { CreateWebWorkerMLCEngine } = await import('@mlc-ai/web-llm');
-    engine = await guard(CreateWebWorkerMLCEngine(llmWorker, tutorModels[settings.tutor], { initProgressCallback: p => progress({ stage: p.text, progress: p.progress * 100 }) }));
+    if (llmWorker) {
+      progress({ stage: `Loading tutor · ${tutorModels[settings.tutor]}` });
+      const { CreateWebWorkerMLCEngine } = await import('@mlc-ai/web-llm');
+      engine = await guard(CreateWebWorkerMLCEngine(llmWorker, tutorModels[settings.tutor], { initProgressCallback: p => progress({ stage: p.text, progress: p.progress * 100 }) }));
+    }
     progress({ stage: 'Kokoro · downloading voice' }); synthesisInfo = await guard(speech.init());
     progress({ stage: 'Loading controller and game knowledge' }); knowledge = await guard(loadKnowledge(signal));
     // Keep one compiled grammar across games. Grounding still uses only the selected
     // pack, and validateKnowledgeReply rejects unavailable actions before any playback.
     schema = JSON.stringify(generationSchema([...new Set(knowledge.games.flatMap(g => g.actions.map(a => a.id)))]));
-    progress({ stage: 'Warming tutor and structured response grammar' });
-    await guard(engine.chat.completions.create({ messages: [{ role:'system', content:buildPrompt(knowledge,resolveGame(knowledge,game)) }, { role:'user', content:'Hello' }], max_tokens:1, response_format:{ type:'json_object', schema } }));
-    await guard(engine.resetChat()); // Internal warmup tokens are never executed or spoken.
+    if (engine) {
+      progress({ stage: 'Warming tutor and structured response grammar' });
+      await guard(engine.chat.completions.create({ messages: [{ role:'system', content:buildPrompt(knowledge,resolveGame(knowledge,game)) }, { role:'user', content:'Hello' }], max_tokens:1, response_format:{ type:'json_object', schema } }));
+      await guard(engine.resetChat()); // Internal warmup tokens are never executed or spoken.
+    }
   } catch (error) { cleanup(); throw error; }
   finally { signal?.removeEventListener('abort', onAbort); }
   let tutor: KnowledgeTutor;
@@ -114,7 +126,8 @@ export async function loadLocal(progress: (p: Progress) => void, signal?: AbortS
   let generationRevision = 0;
   let generationStats: import('./types').GenerationStats | undefined;
   try { tutor = new KnowledgeTutor(knowledge, async messages => {
-    const result = await engine.chat.completions.create({ messages, temperature: .2, max_tokens: 900, response_format: { type: 'json_object', schema } });
+    if (remote) return remote.generate(messages);
+    const result = await engine!.chat.completions.create({ messages, temperature: .2, max_tokens: 900, response_format: { type: 'json_object', schema } });
     const usage = result.usage;
     generationStats = usage ? { promptTokens: usage.prompt_tokens, outputTokens: usage.completion_tokens, prefillTokensPerSecond: usage.extra?.prefill_tokens_per_s, decodeTokensPerSecond: usage.extra?.decode_tokens_per_s, timeToFirstTokenMs: usage.extra ? usage.extra.time_to_first_token_s * 1000 : undefined, grammarInitMs: usage.extra?.grammar_init_s === undefined ? undefined : usage.extra.grammar_init_s * 1000 } : undefined;
     return result.choices[0]?.message.content;
@@ -123,7 +136,7 @@ export async function loadLocal(progress: (p: Progress) => void, signal?: AbortS
   let cacheBytes = 0;
   return {
     adapters: {
-      get info() { return { tutor: tutorModels[settings.tutor], recognition: { model: modelConfig.whisper, ...(asr.info ?? recognitionInfo) }, synthesis: { model: modelConfig.kokoro, ...(speech.info ?? synthesisInfo) }, voice: modelConfig.voice }; },
+      get info() { return { tutor: inference?.model ?? tutorModels[settings.tutor], recognition: { model: modelConfig.whisper, ...(asr.info ?? recognitionInfo) }, synthesis: { model: modelConfig.kokoro, ...(speech.info ?? synthesisInfo) }, voice: modelConfig.voice }; },
       interrupt() { asr.interrupt(); speech.interrupt(); },
       recognition: { transcribe: pcm => asr.request<string>('transcribe', { pcm }, [pcm.buffer as ArrayBuffer]) },
       synthesis: { async synthesize(text, options) {
@@ -145,17 +158,18 @@ export async function loadLocal(progress: (p: Progress) => void, signal?: AbortS
           generationQueue = result.then(() => {}, () => {});
           return result;
         },
-        stats: () => generationStats,
-        interrupt() { generationRevision++; tutor.interrupt(); engine.interruptGenerate(); },
+        stats: () => remote ? remote.stats : generationStats,
+        interrupt() { generationRevision++; tutor.interrupt(); remote?.interrupt(); if (remote) generationQueue = Promise.resolve(); engine?.interruptGenerate(); },
       },
     },
-    setGame: selection => tutor.setGame(selection), getGame: () => tutor.gameId,
+    setGame: selection => { remote?.interrupt(); tutor.setGame(selection); }, getGame: () => tutor.gameId,
     dispose() { cache.clear(); cacheBytes = 0; cleanup(); },
   };
 }
-export async function capabilities(): Promise<string | null> {
+export async function capabilities(mode: 'local' | 'remote' = 'local'): Promise<string | null> {
   if (!isSecureContext) return 'Local voice needs HTTPS or localhost for microphone access.';
   if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return 'Microphone recording is unavailable in this browser. Controller exploration is still available.';
+  if (mode === 'remote') return null;
   const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
   if (!gpu || !await gpu.requestAdapter()) return 'Local voice needs WebGPU and enough device memory. This browser cannot provide a compatible GPU. Controller exploration is still available in labelled development mode.';
   return null;

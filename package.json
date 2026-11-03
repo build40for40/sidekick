@@ -9,11 +9,17 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "build:hosting": "npm run build && node scripts/prepare-cloudflare.mjs",
+    "secret:put": "env -u CLOUDFLARE_API_KEY -u CLOUDFLARE_EMAIL -u CLOUDFLARE_API_TOKEN wrangler secret put --config wrangler.jsonc --profile 40for40",
     "deploy": "npm run build:hosting && env -u CLOUDFLARE_API_KEY -u CLOUDFLARE_EMAIL -u CLOUDFLARE_API_TOKEN wrangler deploy --profile 40for40"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "4.0.96",
+    "@ai-sdk/google": "4.0.111",
+    "@ai-sdk/openai": "4.0.108",
+    "@ai-sdk/openai-compatible": "3.0.84",
     "@huggingface/transformers": "4.3.2",
     "@mlc-ai/web-llm": "0.2.87",
+    "ai": "7.0.162",
     "kokoro-js": "1.2.1",
     "three": "0.187.0"
   },

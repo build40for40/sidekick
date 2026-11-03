@@ -1,6 +1,6 @@
 # Embedding Sidekick
 
-The embedded unit contains an interactive controller and a Record button. An X appears while a demonstration is active. Click it or press Escape to stop the animation and narration, clear the highlight and ease back to the front view. Escape is left alone when no demonstration is active; with multiple active instances it closes the most recently active one. Captions are off by default. Consent, loading, listening and errors appear as short contextual messages.
+The embedded unit contains an interactive controller, a Record button and a settings gear. The gear opens model and game selectors; Escape or an outside click closes the menu. An X appears while a demonstration is active. Click it or press Escape to stop the animation and narration, clear the highlight and ease back to the front view. Escape closes an open settings menu first; with multiple active demonstrations it stops the most recently active one. Short task instructions appear above Record in the muted note style, independently of narration. Spoken captions are off by default. Consent, loading, listening and errors appear as short contextual messages.
 
 ## Build and mount
 
@@ -35,13 +35,25 @@ The host controls dimensions, with a minimum height of 280px. Shadow DOM isolate
 
 The example page also exposes `window.sidekick` for development console calls. The reusable ESM module does **not** create a global or mount itself.
 
+## Inference selection
+
+Local generation is the default. Set `inference: { mode: 'remote', endpoint: '/sidekick/api/tutor', model: 'anthropic:YOUR_MODEL_ID' }` to use the AI SDK backend. Model selection is available in Settings and through `setModel()`. Recognition and synthesis remain local. See [remote setup, consent and provider configuration](REMOTE-INFERENCE.md). State and mode events distinguish `development`, `local` and `remote`.
+
+## Settings menu
+
+Settings offers Qwen 2.5 1.5B, Qwen 2.5 0.5B and SmolLM2 360M locally, plus configured remote choices. Game choices come from the available packs: No game (controller only), Overcooked! 2 and Fortnite. Host calls and questions that explicitly name an available game stay reflected in the selector. Game changes during setup are applied when the runtime becomes ready.
+
+The demo discovers remote choices from the Worker's `GET /sidekick/api/models` route when Settings first opens. This returns only allowlisted models whose provider and request limiter are configured. Other hosts can supply `remoteModels: [{ mode: 'remote', model: 'anthropic:YOUR_MODEL_ID', endpoint: '/sidekick/api/tutor' }]` or a same-origin `modelCatalog` URL returning `{ models: RemoteInferenceOptions[] }`. Failed discovery shows a retry message and does not change the selected model. No API keys appear in the menu or catalog.
+
+Changing models cancels recording, generation and playback, aborts old setup, releases model workers, and clears the conversation and exercise while preserving the selected game. Record then asks for setup consent for the new model. Nothing is automatically downloaded or sent remotely by a menu selection. Choices last for the mounted instance and are not persisted. The host can call `setModel({ mode: 'local', model: 'fast' })` or `setModel({ mode: 'remote', model: 'google:YOUR_MODEL_ID', endpoint: '/sidekick/api/tutor' })`; `getState().model` reports the selection independently of readiness in `mode`. The `settings` event carries the selected model and game when either is changed through the menu or public API.
+
 ## Public API
 
 All functions are typed through `Sidekick` and `createSidekick`. Calls after destruction throw, except `getState()`, `getControls()` and repeated `destroy()`. Unknown IDs, camera views, exercise kinds and invalid actions are rejected at the public boundary. `getState()` and `getControls()` return independent snapshots, not mutable internal objects.
 
 | Function | Behaviour |
 | --- | --- |
-| `initializeVoice({ consent: true })` | Explicitly download/cache and initialise all three local models. Deduplicates concurrent calls, rejects on capability/download errors and emits progress. Destroying the instance aborts initialization. |
+| `initializeVoice({ consent: true })` | Initialise the selected inference mode and download/cache local speech models (plus WebLLM in local mode). Remote mode also requires consent to transmit text/context. Deduplicates concurrent calls, rejects on capability/download errors and emits progress. Destroying the instance aborts initialization. |
 | `startRecording()` / `finishRecording()` | Start/finish a turn; first microphone access follows the host's user gesture. Finish while permission is pending cancels the request. |
 | `ask(text)` | Submit up to 1200 characters. Uses the labelled deterministic tutor until local voice has been explicitly initialised. Local mode generates and speaks on device. |
 | `stop()` / `repeat()` | Stop the current turn, animation and narration, clear the highlight and ease back to front; or repeat the last valid reply and its steps. Stop does not cancel model setup; destroy the instance to abort setup. |
@@ -52,6 +64,7 @@ All functions are typed through `Sidekick` and `createSidekick`. Calls after des
 | `startExercise('find' \| 'click' \| 'practise', controlId)` | Start application-owned practice. `click` requires a stick. |
 | `setHints(boolean)` | Show/hide the current exercise's hint. |
 | `setCaptions(boolean)` | Opt into captions inside the component; alternatively render host captions from reply events. |
+| `setModel(selection)` | Select a local model key (`quality`, `fast`, `compact`) or remote model/endpoint. Cancels current work; fresh setup consent is required. |
 | `setGame(gameOrNull)` | Explicitly select `overcooked2`, `fortnite`, or `active` (the runtime pack configuration); `null` restores controller-only mode. Cancels playback and clears conversation/lesson state. Local questions that name an available game also establish context. |
 | `setPlayback({ speed, maxRepeats })` | Set animation speed (`slow`, `medium`, `fast`) and total visual passes (positive integer or `null` for unlimited). Defaults: medium/unlimited. Cancels the current demonstration; settings apply to the next one. Narration is spoken once, independently of silent visual repeats. |
 | `enableGamepad(boolean)` | Enable/disable live standard-mapped Gamepad API input. Enabled by default; disabling clears held controls. |
@@ -59,7 +72,7 @@ All functions are typed through `Sidekick` and `createSidekick`. Calls after des
 | `on(listener)` | Subscribe to typed events; returns an unsubscribe function. |
 | `destroy()` | Abort and release resources, clear the component, emit `destroyed`, detach subscriptions. |
 
-The event union includes `phase`, `progress`, `mode`, `transcript`, `reply`, `error`, `timing`, `selection`, `lesson`, `view`, `gamepad`, `gamepad-input` and `destroyed`. Host text input, captions, stop/repeat and lesson UI can be completely separate from the embedded view. Virtual and physical input remain distinguishable through selection and lesson events. Permission, model and inference errors are emitted and shown in the component. Synchronous validation errors throw; initialization errors also reject its promise. Questions and recording requests during setup are rejected.
+The event union includes `phase`, `progress`, `mode`, `settings`, `transcript`, `reply`, `error`, `timing`, `selection`, `lesson`, `view`, `gamepad`, `gamepad-input` and `destroyed`. Host text input, captions, stop/repeat and lesson UI can be completely separate from the embedded view. Virtual and physical input remain distinguishable through selection and lesson events. Permission, model and inference errors are emitted and shown in the component. Synchronous validation errors throw; initialization errors also reject its promise. Questions and recording requests during setup are rejected.
 
 ## Live controller feedback
 
@@ -85,7 +98,7 @@ console.log(tutor.getState().gamepad); // Initial snapshot.
 
 Mount options also accept `game` and `playback`. Leaving `game` unset never selects the game's configured default. `setGame('active')` is an explicit request to use `knowledge/active-game.json`; changing that JSON and rebuilding switches the default pack without application-code changes. Vite emits runtime knowledge files as separate assets; deploy them alongside the ESM entry and workers. The master PS5 labels and geometry are built together.
 
-Real local replies contain `spoken`, `found`, `actionId`, `steps`, and `jargon`. Each step contains `action`, `controlId`, `say`, and optional `hold`, `times`, `direction`. `action(reply)` accepts this multi-step format as well as the original single-action controller format; it validates the entire reply before playing it. `repeat()` replays the last validated introduction and all narrated steps. The `step` event fires when that step's audio starts, with its index and duration. `demonstration` indicates the start of silent visual repeats. State contains the selected `game` and latest `jargon`; the host owns any glossary display. Development mode remains a labelled controller fixture, with no game inference or speech.
+Generated local and remote replies contain `spoken`, `summary`, `found`, `actionId`, `steps`, and `jargon`. `summary` is a separate on-screen task description (1–160 characters), preserving essential conditions and action order rather than repeating narration. It is validated before display and never synthesized. The runtime still accepts older host/fixture replies without `summary`; their display uses a compact checklist of validated control actions. Each step contains `action`, `controlId`, `say`, and optional `hold`, `times`, `direction`. `action(reply)` accepts this multi-step format as well as the original single-action controller format; it validates the entire reply before playing it. `repeat()` replays the last validated introduction and all narrated steps. The `step` event fires when that step's audio starts, with its index and duration. `demonstration` indicates the start of silent visual repeats. State contains the selected `game`, display `summary`, and latest `jargon`; the host owns any glossary display. Development mode remains a labelled controller fixture, with no game inference or speech.
 
 ## Voice consent and browser gestures
 
@@ -118,7 +131,7 @@ const sidekick = createSidekick(element, {
 });
 ```
 
-Profiles are fixed for a mounted instance. Destroy and remount to compare models; reinitialize voice after the host has obtained download consent. No model is silently downloaded before that consent. These options do not change the selected game or supply missing game knowledge.
+The audio backend is fixed for a mounted instance. Use Settings or `setModel()` to compare tutor models, then reinitialize voice after obtaining setup consent. No model is silently downloaded before that consent. These options do not change the selected game or supply missing game knowledge.
 
 Timing events retain `transcription`, `generation`, `synthesis`, and `firstAudible`, and add preparation/resampling time, queue wait, captured/trimmed audio duration, time to first synthesized sentence, runtime model/backend/dtype information, token counts, prefill/decode rates, time to first token and grammar initialization where WebLLM reports them. Text submissions start their latency clock at submission. `firstAudible` remains a playback scheduling estimate, not an acoustic measurement. `synthesis` accumulates model/cache request time, excluding playback. Later sentences may synthesize during earlier audio, so adding all stage durations does not represent total wall time.
 
@@ -127,3 +140,5 @@ Recording uses a silent AudioWorklet to collect mono PCM when available. Its mod
 Interrupting busy ASR/TTS terminates only its worker; a later request lazily reloads that model from browser-managed asset caches. This trades reload cost for releasing cancelled compute. Idle model workers stay resident. The synthesizer maintains an 8 MiB in-memory audio cache per runtime; destroy releases it. Fully validated introductions play sentence by sentence, and the next sentence synthesizes during playback. Each action step stays a single audio unit so its visual cue remains aligned.
 
 For repeatable real-model checks, open `performance.html` on the same local/preview host. The lab is a separate host page, not part of the embedded controller. It records synthetic audio separately from typed tutor evaluations, offers quick smoke and five-pass full suites, and lets you save results locally. Inspect actual text, control choices and failures; a structural validation pass alone is not a semantic quality score. The lab disables response caching for inference comparisons.
+
+The instruction summary is visible by default even when `captions` is false. Step narration updates only the optional caption. The summary remains after stopping a demonstration and if speech synthesis fails; a new question or recording, game change, or model change clears it. `action(reply)` can provide `summary` for visual-only host demonstrations.

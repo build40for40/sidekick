@@ -40,3 +40,20 @@ it('drops an old queued tutor request after interruption before it enters model 
   expect(mocks.create).toHaveBeenCalledTimes(2); // Warmup + first only.
   runtime.dispose();
 });
+it('remote mode creates only audio workers, reuses knowledge validation, and releases resources', async () => {
+  const workers: any[] = [];
+  class Worker {
+    onmessage:any; onerror:any; terminate=vi.fn();
+    constructor() { workers.push(this); }
+    postMessage(message:any) { queueMicrotask(() => this.onmessage({data:{id:message.id,value:{backend:'wasm',dtype:'q8'}}})); }
+  }
+  vi.stubGlobal('Worker',Worker);
+  const reply={spoken:'Which game?',found:false,actionId:null,steps:[],jargon:null};
+  const fetch=vi.fn(async () => Response.json({reply}));vi.stubGlobal('fetch',fetch);
+  const {loadRemote}=await import('../src/voice/local');
+  const runtime=await loadRemote(()=>{},undefined,null,{audioBackend:'wasm'},undefined,{mode:'remote',endpoint:'/api/tutor',model:'google:test'});
+  expect(workers).toHaveLength(2);expect(mocks.create).not.toHaveBeenCalled();
+  expect(runtime.adapters.info?.tutor).toBe('google:test');
+  expect(await runtime.adapters.tutor.reply('Help')).toEqual(reply);
+  runtime.dispose();runtime.dispose();workers.forEach(worker=>expect(worker.terminate).toHaveBeenCalledOnce());
+});

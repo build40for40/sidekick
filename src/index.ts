@@ -9,3 +9,5 @@ export type { Lesson, LessonKind, InputSource } from './tutor/lesson';
 export type { Phase, Progress, Timings } from './voice/types';
 export type { VoicePerformanceOptions } from './voice/config';
 export type { GenerationStats, RuntimeInfo } from './voice/types';
+export type { InferenceOptions, RemoteInferenceOptions } from './voice/remote';
+export type { TutorModelSelection } from './tutor/models';
