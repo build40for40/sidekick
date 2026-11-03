@@ -1,0 +1,12 @@
+question,expected_found,expected_actions,expected_controls_in_order,why_this_test
+How do I jump?,true,jump,cross,Simplest possible case
+how do i build a wall,true,build_mode > place_wall,circle > r2,Needs a step before it (build mode)
+My son keeps yelling 'box up!' what does that mean and how do I do it?,true,build_mode > place_wall > place_roof,circle > r2 > l1,Slang plus action: fills jargon and steps
+What's a crank 90?,true,build_mode > place_wall > place_stairs,circle > r2 > l2,Slang the user can't spell properly
+how do I open the treasure box thing,true,interact,square,Everyday words for a game thing (chest)
+I keep running out of bullets,true,reload,square,Problem described instead of an action
+How do I see where I am?,true,map,touchpad,Vague wording
+What does GG mean?,true,,,"Slang only, no buttons: steps should be empty"
+How do I do the floss dance?,true,emote,dpad-down,"Specific dance not in the files: should open the emote wheel, not invent a floss button"
+How do I swap to my other gun,true,next_item,r1,Casual wording for switching weapons
+How do I drive a car?,false,,,"Not in the files: must say it doesn't know, not guess"

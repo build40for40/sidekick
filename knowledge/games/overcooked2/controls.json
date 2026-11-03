@@ -1,0 +1,35 @@
+{
+  "id": "overcooked2",
+  "name": "Overcooked! 2",
+  "controller": "ps5",
+  "default_mode": "solo",
+  "preset": "Default layout, one player per controller (the PS4 game, played on a PS5)",
+  "source": "Twinfinite, How to Dash (https://twinfinite.net/guides/overcooked-2-dash-how/) and How to Throw Items (https://twinfinite.net/guides/overcooked-2-throw-items-how/); Gamertweak, How To Chop (https://gamertweak.com/overcooked-2-how-to-chop/); GamerDad PS4 review (http://www.gamerdad.com/blog/2018/09/07/overcooked-2-ps4-switch-xbox-one-pc/). Checked 3 Nov 2026. The sources disagree on dash (Circle vs Cross) and on chop/throw (Square vs Triangle): the majority view is used and the disputed rows say so in `check`.",
+  "note": "verified: \"device\" = checked on a real PS5. \"web\" = from the published sources above. false = not sourced; the LLM must not use it until someone checks it on a PS5 (the in-game tutorial shows the button prompts).",
+  "coach_notes": [
+    "This is a cooking game played together. Most questions are about teamwork, so keep answers short: people are mid-level with a timer running.",
+    "The same button chops at a chopping board and throws when you're holding food away from a board. Say which one you mean.",
+    "In shared-controller mode (two players on one controller) the buttons are different. Only answer for one player per controller."
+  ],
+  "modes": {
+    "solo": "One player per controller. This is the mode we're teaching."
+  },
+  "to_check_on_ps5": [
+    "Dash: Circle (GamerDad) or Cross (Twinfinite)?",
+    "Chop/throw: Square (Gamertweak, GamerDad) or Triangle (Twinfinite)?",
+    "Which button washes plates at the sink? Probably the same as chop.",
+    "Which button emotes?",
+    "Which button switches chef when playing alone?"
+  ],
+  "actions": [
+    { "id": "move",        "plain": "Walk your chef around the kitchen",                                "mode": "solo", "ps5": [{ "controlId": "left-stick", "action": "tilt" }],   "verified": "web" },
+    { "id": "pick_up",     "plain": "Pick up food, a plate or a pan (or put it down if you're holding something)", "mode": "solo", "ps5": [{ "controlId": "cross", "action": "press" }], "verified": "web", "check": "Implied by all sources (the bottom button), not named outright" },
+    { "id": "put_down",    "plain": "Put down what you're holding on the counter in front of you",      "mode": "solo", "ps5": [{ "controlId": "cross", "action": "press" }],      "verified": "web", "check": "Same button as pick up" },
+    { "id": "chop",        "plain": "Chop food that's on a chopping board",                              "mode": "solo", "needs": "put_down", "ps5": [{ "controlId": "square", "action": "press" }], "verified": "web", "check": "Disputed: Twinfinite says Triangle" },
+    { "id": "throw",       "plain": "Throw the food you're holding to a teammate or onto a counter",    "mode": "solo", "ps5": [{ "controlId": "square", "action": "press" }],     "verified": "web", "check": "Disputed: Twinfinite says Triangle" },
+    { "id": "dash",        "plain": "Do a quick burst of speed in the direction you're walking",        "mode": "solo", "ps5": [{ "controlId": "circle", "action": "press" }],     "verified": "web", "check": "Disputed: Twinfinite says Cross" },
+    { "id": "serve",       "plain": "Hand in a finished plate at the serving hatch (the pass)",          "mode": "solo", "needs": "pick_up", "ps5": [{ "controlId": "cross", "action": "press" }], "verified": "web", "check": "Serving = putting the plate down on the pass" },
+    { "id": "wash",        "plain": "Wash dirty plates at the sink",                                     "mode": "solo", "ps5": [{ "controlId": "square", "action": "press", "hold": true }], "verified": false, "check": "Not sourced: probably the chop button" },
+    { "id": "pause",       "plain": "Pause the game",                                                    "mode": "solo", "ps5": [{ "controlId": "options", "action": "press" }],    "verified": false, "check": "Not sourced: Options pauses in most PS games" }
+  ]
+}

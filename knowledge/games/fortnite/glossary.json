@@ -1,0 +1,105 @@
+{
+  "game": "fortnite",
+  "note": "Gamer slang translated for someone who doesn't play. Check each meaning with a real player (ideally the gamer in someone's family). `actions` links to ids in controls.json; leave it empty for words that aren't a button press.",
+  "terms": [
+    {
+      "term": "box up",
+      "means": "Quickly build walls (and a roof) all around yourself to hide from attacks",
+      "actions": [
+        "build_mode",
+        "place_wall",
+        "place_roof"
+      ],
+      "verified": "approved"
+    },
+    {
+      "term": "crank 90s",
+      "means": "Build ramps and walls in a fast spinning pattern to climb high above other players",
+      "actions": [
+        "build_mode",
+        "place_wall",
+        "place_stairs"
+      ],
+      "verified": "approved"
+    },
+    {
+      "term": "third-partied",
+      "means": "While you're fighting one player, a third player shows up and attacks you both",
+      "actions": [],
+      "verified": "approved"
+    },
+    {
+      "term": "the storm",
+      "means": "The shrinking danger zone that hurts you if you stay outside the safe circle",
+      "actions": [],
+      "verified": "approved"
+    },
+    {
+      "term": "rotate",
+      "means": "Move to a new spot on the map, usually to stay inside the safe circle",
+      "actions": [
+        "move",
+        "map"
+      ],
+      "verified": "approved"
+    },
+    {
+      "term": "hot drop",
+      "means": "Land somewhere busy at the start of the game where lots of other players also land",
+      "actions": [],
+      "verified": "approved"
+    },
+    {
+      "term": "loot",
+      "means": "Weapons and items you pick up from the floor or from chests",
+      "actions": [
+        "interact"
+      ],
+      "verified": "approved"
+    },
+    {
+      "term": "shield",
+      "means": "An extra health bar that protects you before your real health goes down",
+      "actions": [],
+      "verified": "approved"
+    },
+    {
+      "term": "cracked",
+      "means": "Really, really good at the game (a compliment)",
+      "actions": [],
+      "verified": "approved"
+    },
+    {
+      "term": "bot",
+      "means": "A computer-controlled player, or an insult for a player who isn't very good",
+      "actions": [],
+      "verified": "approved"
+    },
+    {
+      "term": "sweaty",
+      "means": "Playing very seriously and competitively, trying extremely hard",
+      "actions": [],
+      "verified": "approved"
+    },
+    {
+      "term": "W-key",
+      "means": "Rushing straight at the enemy without hiding (from pressing W to go forward on a keyboard)",
+      "actions": [
+        "move"
+      ],
+      "verified": "approved"
+    },
+    {
+      "term": "GG",
+      "means": "\"Good game\". Said at the end of a match, win or lose",
+      "actions": [],
+      "verified": "approved"
+    },
+    {
+      "term": "victory royale",
+      "means": "Winning the match: you're the last player or team left",
+      "actions": [],
+      "verified": "approved"
+    }
+  ]
+}
