@@ -1,6 +1,6 @@
 import './style.css';
 import { ControllerScene } from './controller/scene';
-import { controls, byId, manifest, sequences, sequenceById, type Sequence } from './controller/manifest';
+import { controls, byId, manifest, featuredMoves, sequenceById, type Sequence } from './controller/manifest';
 import { PhysicalInput } from './controller/gamepad';
 import { transitionLesson, type Lesson, type InputSource, type LessonKind } from './tutor/lesson';
 import { VoiceOrchestrator } from './voice/orchestrator';
@@ -81,11 +81,11 @@ async function playMove(move:Sequence, speak=true) {
   if(done) { steps.querySelectorAll('li').forEach(li=>{li.classList.remove('active'); li.classList.add('done');}); steps.classList.add('complete'); setTimeout(()=>steps.classList.remove('complete'),900); }
   moveList.querySelectorAll('button').forEach(b=>b.classList.remove('playing'));
 }
-for(const move of sequences) { const b=document.createElement('button'); b.dataset.move=move.id; b.textContent=move.title; b.onclick=()=>{ voice.stop(); void playMove(move); }; moveList.append(b); }
+for(const move of featuredMoves.map(id=>sequenceById.get(id)).filter((m):m is Sequence=>!!m)) { const b=document.createElement('button'); b.dataset.move=move.id; b.textContent=move.title; b.onclick=()=>{ voice.stop(); void playMove(move); }; moveList.append(b); }
 for(const c of controls) { const button=document.createElement('button'); button.textContent=c.glyph===c.label?c.label:`${c.glyph} ${c.label}`; button.onclick=()=>select(c.id); el('control-list').append(button); }
 app.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach(button=>button.onclick=()=> {
   voice.stop(); stopMove(); const kind=button.dataset.lesson as LessonKind;
-  const target=kind==='find'?'cross':kind==='click'?'left-stick':'right-bumper';
+  const target=kind==='find'?'cross':kind==='click'?'left-stick':'r1';
   lesson=transitionLesson(lesson,{type:'start',kind,target}); el<HTMLInputElement>('hints').checked=true;
   updateLesson(); scene?.highlight(target);
   say(kind==='click'?'Clicking means pushing a stick straight down like a button. Click the left stick on screen to practise.':`Find ${byId.get(target)!.label}. You can turn hints off when you’re ready.`);

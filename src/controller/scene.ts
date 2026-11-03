@@ -339,7 +339,7 @@ export class ControllerScene {
     this.scene.environmentIntensity = THREE.MathUtils.lerp(.55, .16, this.focus);
     this.hemi.intensity = THREE.MathUtils.lerp(.5, .1, this.focus);
     this.key.intensity = THREE.MathUtils.lerp(1.8, .35, this.focus);
-    this.spot.intensity = 150 * this.focus;
+    this.spot.intensity = 95 * this.focus;
     const beamMat = this.beam.material as THREE.ShaderMaterial;
     if (this.selected && this.nodes.has(this.selected)) {
       const at = this.worldOf(this.selected);
