@@ -1,6 +1,8 @@
 # Sidekick
 
-A welcoming controller tutor scaffold built with vanilla TypeScript, Vite and Three.js. Ask a question, explore the controller and practise finding controls. Local voice adapters use Whisper, WebLLM and Kokoro in workers.
+A welcoming, private game guide powered by a local LLM, built with vanilla TypeScript, Vite and Three.js. The intended experience is to ask questions such as “How do I jump in this game?” or “How do I do this action?” and receive guidance through game actions, sequences of actions and components of the game. The interactive 3D controller supports that guidance by showing the relevant inputs and how to use them. Local voice adapters use Whisper, WebLLM and Kokoro in workers.
+
+The current scaffold implements controller explanations and practice. Game-specific knowledge, action mappings and broader gameplay guidance remain to be implemented; the existing controller facts alone cannot establish how an action works in a particular game.
 
 **This is an early scaffold, not a verified complete voice product.** It starts in clearly labelled development tutor mode with deterministic text replies. The temporary 3D controller will be replaced by Blender assets later. Real local inference adapters are implemented; browser verification status is recorded in [VALIDATION.md](docs/VALIDATION.md).
 
