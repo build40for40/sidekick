@@ -1,0 +1,204 @@
+{
+  "note": "Gold answers: what a good tutor reply looks like for each question in tests.csv, in output-schema.json format. Checked by `node tools/dry-run.mjs fortnite`. Building answers must say building only works in Build matches (coach_notes).",
+  "answers": [
+    {
+      "question": "How do I jump?",
+      "reply": {
+        "spoken": "Jumping is on the X button, at the bottom of the four buttons on the right.",
+        "found": true,
+        "actionId": "jump",
+        "steps": [
+          {
+            "action": "press",
+            "controlId": "cross",
+            "say": "Press X to jump."
+          }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "how do i build a wall",
+      "reply": {
+        "spoken": "Building only works in normal Build matches, not Zero Build. Switch into building first, then place the wall.",
+        "found": true,
+        "actionId": "place_wall",
+        "steps": [
+          {
+            "action": "press",
+            "controlId": "circle",
+            "say": "Press the circle button to switch into building."
+          },
+          {
+            "action": "squeeze",
+            "controlId": "r2",
+            "say": "Pull the right trigger to put a wall in front of you."
+          }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "My son keeps yelling 'box up!' what does that mean and how do I do it?",
+      "reply": {
+        "spoken": "Boxing up means building walls and a roof around yourself to hide. It only works in Build matches, not Zero Build.",
+        "found": true,
+        "actionId": "place_wall",
+        "steps": [
+          {
+            "action": "press",
+            "controlId": "circle",
+            "say": "Press the circle button to switch into building."
+          },
+          {
+            "action": "squeeze",
+            "controlId": "r2",
+            "say": "Pull the right trigger for a wall, turning to build one each side."
+          },
+          {
+            "action": "press",
+            "controlId": "l1",
+            "say": "Press L1 to put a roof over your head."
+          }
+        ],
+        "jargon": {
+          "term": "box up",
+          "means": "Quickly build walls (and a roof) all around yourself to hide from attacks"
+        }
+      }
+    },
+    {
+      "question": "What's a crank 90?",
+      "reply": {
+        "spoken": "A crank 90 is a fast way to climb high by building ramps and walls as you spin. It only works in Build matches.",
+        "found": true,
+        "actionId": "place_stairs",
+        "steps": [
+          {
+            "action": "press",
+            "controlId": "circle",
+            "say": "Press the circle button to switch into building."
+          },
+          {
+            "action": "squeeze",
+            "controlId": "r2",
+            "say": "Pull the right trigger to build a wall."
+          },
+          {
+            "action": "squeeze",
+            "controlId": "l2",
+            "say": "Pull the left trigger to build a ramp, then turn and repeat."
+          }
+        ],
+        "jargon": {
+          "term": "crank 90s",
+          "means": "Build ramps and walls in a fast spinning pattern to climb high above other players"
+        }
+      }
+    },
+    {
+      "question": "how do I open the treasure box thing",
+      "reply": {
+        "spoken": "That glowing box is a chest. Walk up to it and hold the square button to open it.",
+        "found": true,
+        "actionId": "interact",
+        "steps": [
+          {
+            "action": "press",
+            "controlId": "square",
+            "hold": true,
+            "say": "Stand next to the chest and hold the square button."
+          }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "I keep running out of bullets",
+      "reply": {
+        "spoken": "That happens to everyone! Reloading fills your gun back up.",
+        "found": true,
+        "actionId": "reload",
+        "steps": [
+          {
+            "action": "press",
+            "controlId": "square",
+            "say": "Tap the square button to reload."
+          }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "How do I see where I am?",
+      "reply": {
+        "spoken": "Open the map to see where you are and where the safe circle is.",
+        "found": true,
+        "actionId": "map",
+        "steps": [
+          {
+            "action": "press",
+            "controlId": "touchpad",
+            "say": "Press the big pad in the middle to open the map."
+          }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "What does GG mean?",
+      "reply": {
+        "spoken": "GG means \"good game\". People say it at the end of a match, win or lose.",
+        "found": true,
+        "actionId": null,
+        "steps": [],
+        "jargon": {
+          "term": "GG",
+          "means": "\"Good game\". Said at the end of a match, win or lose"
+        }
+      }
+    },
+    {
+      "question": "How do I do the floss dance?",
+      "reply": {
+        "spoken": "Dances live on the emote wheel. If you own the floss, you'll find it there.",
+        "found": true,
+        "actionId": "emote",
+        "steps": [
+          {
+            "action": "press",
+            "controlId": "dpad-down",
+            "say": "Press down on the arrows to open the emote wheel."
+          }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "How do I swap to my other gun",
+      "reply": {
+        "spoken": "You can flick through your weapons with the right bumper.",
+        "found": true,
+        "actionId": "next_item",
+        "steps": [
+          {
+            "action": "press",
+            "controlId": "r1",
+            "say": "Press R1 to switch to your next weapon."
+          }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "How do I drive a car?",
+      "reply": {
+        "spoken": "I don't know the driving buttons yet, so I won't guess. That's a great one to ask whoever you're playing with.",
+        "found": false,
+        "actionId": null,
+        "steps": [],
+        "jargon": null
+      }
+    }
+  ]
+}

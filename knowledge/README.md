@@ -37,7 +37,7 @@ knowledge/
 | `games/overcooked2/glossary.json` | Samira | 8 terms, approved by Samira (`approved`) |
 | `games/overcooked2/tests.csv` | Samira | 10 eval questions, each with a gold answer. Dry run: 10/10 pass |
 | `games/overcooked2/ps5-check-sheet.md` | Anyone with a PS5 | 7 rows to check (dash, chop/throw, wash, pause, emote, switch chef) |
-| `games/fortnite/*` | Samira | 25 controls (`web`), 14 slang terms (`approved`), 10 tests |
+| `games/fortnite/*` | Samira | 25 controls (`web`), 14 slang terms (`approved`), 11 tests with gold answers. Dry run: 11/11 pass |
 | `system-prompt.md` | Samira | Done. Game-specific rules live in each game's `coach_notes` |
 | `output-schema.json` | Samira + Ben | Decided: multi-step. Ben to extend `validateReply` |
 
