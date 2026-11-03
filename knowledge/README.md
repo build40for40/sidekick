@@ -19,18 +19,24 @@ knowledge/
       controls.json         actions → steps, plus coach_notes and to_check_on_ps5
       glossary.json         slang
       tests.csv             eval questions
+      expected-answers.json gold answer for each test question
+      ps5-check-sheet.md    10-minute sheet to check disputed buttons on a real PS5
     fortnite/               ← swap back in when needed
       controls.json
       glossary.json
       tests.csv
+  tools/
+    dry-run.mjs             checks expected-answers.json against every rule
+    check-model.mjs         checks a .glb's part names against the master labels
 ```
 
 | File | Owner | Status |
 |---|---|---|
 | `controllers/ps5.json` | Samira | **Master list of button labels** |
 | `games/overcooked2/controls.json` | Samira | 7 usable actions from published guides (`web`), 2 to check on a PS5. Dash and chop/throw are disputed between sources: see `to_check_on_ps5` |
-| `games/overcooked2/glossary.json` | Samira | 8 terms, **awaiting Samira's approval** (`verified: false`) |
-| `games/overcooked2/tests.csv` | Samira | 10 eval questions |
+| `games/overcooked2/glossary.json` | Samira | 8 terms, approved by Samira (`approved`) |
+| `games/overcooked2/tests.csv` | Samira | 10 eval questions, each with a gold answer. Dry run: 10/10 pass |
+| `games/overcooked2/ps5-check-sheet.md` | Anyone with a PS5 | 7 rows to check (dash, chop/throw, wash, pause, emote, switch chef) |
 | `games/fortnite/*` | Samira | 25 controls (`web`), 14 slang terms (`approved`), 10 tests |
 | `system-prompt.md` | Samira | Done. Game-specific rules live in each game's `coach_notes` |
 | `output-schema.json` | Samira + Ben | Decided: multi-step. Ben to extend `validateReply` |
@@ -45,10 +51,20 @@ knowledge/
 6. The animation plays `steps` in order; the voice reads `spoken`, then each `say`.
 7. Run `games/<game>/tests.csv` (merged into `evaluation/cases.json`) after every change. For the evals the game is Overcooked! 2.
 
+## Tools
+
+```sh
+node knowledge/tools/dry-run.mjs              # active game; or: dry-run.mjs fortnite
+node knowledge/tools/check-model.mjs public/assets/controller.glb
+```
+
+`dry-run.mjs` checks each gold answer: schema shape, real PS5 buttons, tilt/squeeze on the right parts, only verified rows, `needs` steps first, steps copied exactly from the game file, matches `tests.csv`, under 15 words per step, no "simply"/"just". `check-model.mjs` lists which master labels are missing from the model and suggests renames.
+
 ## Before the demo
 
 - [x] Fortnite PS5 defaults (Builder Pro) filled in from a published guide: rows are `verified: "web"`
 - [ ] Check them on a real PS5 controls screen, then change `"web"` to `"device"`
 - [x] Glossary approved by Samira for the demo (`verified: "approved"`)
 - [ ] Check the glossary with a real Fortnite player
-- [ ] Rename button ids to match the Blender model (or the other way round)
+- [ ] Overcooked: fill in `games/overcooked2/ps5-check-sheet.md` on a real PS5, then set those rows to `"device"`
+- [ ] When Lawrence's model lands, run `check-model.mjs` and rename its parts to the master labels

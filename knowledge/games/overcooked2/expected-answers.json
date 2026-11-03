@@ -1,0 +1,122 @@
+{
+  "note": "Gold answers: what a good tutor reply looks like for each question in tests.csv, in output-schema.json format. Checked by `node tools/dry-run.mjs`. Ben's evals can compare the LLM's real replies against these.",
+  "answers": [
+    {
+      "question": "How do I move?",
+      "reply": {
+        "spoken": "Moving is all in your left thumb: push the left stick the way you want to walk.",
+        "found": true,
+        "actionId": "move",
+        "steps": [
+          { "action": "tilt", "controlId": "left-stick", "say": "Push the left stick to walk your chef around." }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "how do i pick up the tomato",
+      "reply": {
+        "spoken": "Walk up to the tomato and press X to grab it.",
+        "found": true,
+        "actionId": "pick_up",
+        "steps": [
+          { "action": "press", "controlId": "cross", "say": "Stand facing the tomato and press X." }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "how do I chop the lettuce",
+      "reply": {
+        "spoken": "Chopping is a team favourite: put the lettuce on a chopping board first, then chop away.",
+        "found": true,
+        "actionId": "chop",
+        "steps": [
+          { "action": "press", "controlId": "cross", "say": "Walk to a chopping board and press X to put the lettuce down." },
+          { "action": "press", "controlId": "square", "say": "Now press the square button to chop it." }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "Throw the onion to my partner!",
+      "reply": {
+        "spoken": "Away from a chopping board, the square button throws what you're holding.",
+        "found": true,
+        "actionId": "throw",
+        "steps": [
+          { "action": "press", "controlId": "square", "say": "Face your partner and press the square button to throw." }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "How do I run faster",
+      "reply": {
+        "spoken": "You can do a quick dash: it's a short burst of speed in the way you're walking.",
+        "found": true,
+        "actionId": "dash",
+        "steps": [
+          { "action": "press", "controlId": "circle", "say": "While you're walking, press the circle button to dash." }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "My daughter keeps saying 'plate it up' what does that mean",
+      "reply": {
+        "spoken": "Plating up means putting the cooked food onto a clean plate so it's ready to serve.",
+        "found": true,
+        "actionId": "pick_up",
+        "steps": [
+          { "action": "press", "controlId": "cross", "say": "Press X to pick up the cooked food." },
+          { "action": "press", "controlId": "cross", "say": "Walk to a clean plate and press X again to put it on." }
+        ],
+        "jargon": { "term": "plate it up", "means": "Put the cooked food onto a clean plate so it's ready to serve" }
+      }
+    },
+    {
+      "question": "How do I hand the food in?",
+      "reply": {
+        "spoken": "Pick up the finished plate and put it down on the serving hatch.",
+        "found": true,
+        "actionId": "serve",
+        "steps": [
+          { "action": "press", "controlId": "cross", "say": "Press X to pick up the finished plate." },
+          { "action": "press", "controlId": "cross", "say": "Walk to the serving hatch and press X to hand it in." }
+        ],
+        "jargon": null
+      }
+    },
+    {
+      "question": "What's the pass?",
+      "reply": {
+        "spoken": "The pass is the serving hatch where you hand in finished plates.",
+        "found": true,
+        "actionId": null,
+        "steps": [],
+        "jargon": { "term": "the pass", "means": "The serving hatch where you hand in finished plates" }
+      }
+    },
+    {
+      "question": "How do I wash the plates",
+      "reply": {
+        "spoken": "I don't know the washing button for sure yet, so I won't guess. Try the sink and watch the button shown on screen.",
+        "found": false,
+        "actionId": null,
+        "steps": [],
+        "jargon": null
+      }
+    },
+    {
+      "question": "The kitchen is on fire what do I do",
+      "reply": {
+        "spoken": "I don't know that one yet, so I won't guess. Your teammate will know, and it's a great one to ask them.",
+        "found": false,
+        "actionId": null,
+        "steps": [],
+        "jargon": null
+      }
+    }
+  ]
+}

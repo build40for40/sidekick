@@ -5,7 +5,7 @@ how do I chop the lettuce,true,put_down > chop,cross > square,Needs a step befor
 Throw the onion to my partner!,true,throw,square,Same button as chop: must say it's for throwing
 How do I run faster,true,dash,circle,Casual wording for dash
 My daughter keeps saying 'plate it up' what does that mean,true,pick_up > put_down,cross > cross,Slang plus action: fills jargon and steps
-How do I hand the food in?,true,serve,cross,Vague wording for serving
+How do I hand the food in?,true,pick_up > serve,cross > cross,Vague wording for serving; needs a pick up first
 What's the pass?,true,,,"Slang only, no buttons: steps should be empty"
 How do I wash the plates,false,,,Wash isn't verified yet: must say it doesn't know (flip to true once checked)
 The kitchen is on fire what do I do,false,,,"Not in the files: must say it doesn't know, not guess"
