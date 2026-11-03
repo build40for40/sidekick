@@ -1,9 +1,10 @@
 :host { display: block; position: relative; width: 100%; height: 100%; min-height: 280px; color: #29332d; font-family: system-ui, sans-serif; }
 * { box-sizing: border-box; }
-.sidekick { position: relative; width: 100%; height: 100%; min-height: 280px; isolation: isolate; }
+.sidekick { position: relative; width: 100%; height: 100%; min-height: 280px; isolation: isolate; overflow: hidden; border-radius: var(--sidekick-stage-radius, 16px); background: var(--sidekick-stage-background, radial-gradient(120% 90% at 50% 38%, #2a1f45 0%, #140f22 48%, #0a0812 100%)); color: #d9d2ec; }
 .scene { position: absolute; inset: 0 0 80px; }
-.scene canvas { display: block; touch-action: none; }
-.asset-note { position: absolute; top: 16px; left: 18px; z-index: 1; font-size: 10px; letter-spacing: .03em; opacity: .55; pointer-events: none; }
+.scene canvas { display: block; touch-action: none; cursor: grab; }
+.asset-note { position: absolute; top: 16px; left: 18px; right: 18px; z-index: 1; font-size: 10px; line-height: 1.5; letter-spacing: .03em; opacity: .6; pointer-events: none; }
+.asset-note a { color: inherit; pointer-events: auto; }
 .record-area { position: absolute; bottom: 20px; left: 16px; right: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none; }
 .record { pointer-events: auto; display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 132px; min-height: 52px; padding: 13px 24px; border: 1px solid #ffffff25; border-radius: 999px; background: var(--sidekick-button-background, #263e2d); color: var(--sidekick-button-color, #fff); font: 500 14px system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 16px #1a302115; }
 .record:hover { filter: brightness(1.12); }
@@ -12,10 +13,16 @@
 .record.listening { background: #a43b35; }
 .record.listening .mic { animation: pulse 1.2s ease-in-out infinite; }
 .mic { width: 20px; height: 20px; }
-.notice, .caption { pointer-events: auto; max-width: 430px; padding: 10px 14px; margin: 0; border-radius: 10px; background: #fffffff2; box-shadow: 0 2px 16px #1420190a; font-size: 12px; line-height: 1.6; text-align: center; overflow-wrap: anywhere; }
+.notice, .caption { pointer-events: auto; color: #29332d; max-width: 430px; padding: 10px 14px; margin: 0; border-radius: 10px; background: #fffffff2; box-shadow: 0 2px 16px #1420190a; font-size: 12px; line-height: 1.6; text-align: center; overflow-wrap: anywhere; }
 [hidden] { display: none !important; }
-.model-label { display: block; min-width: 15px; text-align: center; font-size: 10px; font-weight: 700; color: #f4f5e7; text-shadow: 0 1px 3px #000; line-height: 18px; }
-.model-label.active { background: #e4ed9d; color: #233c2c; border: 2px solid #fff; padding: 3px 6px; border-radius: 5px; text-shadow: none; font-size: 13px; box-shadow: 0 0 0 3px #65794a; }
+/* Labels appear only for the active control. --hold drives the hold progress bar. */
+.model-label { display: none; align-items: center; gap: 6px; transform: translateY(-8px); font: 600 12px system-ui, sans-serif; color: #fff; background: #140e24b8; border: 1px solid #c9a6ffa6; padding: 6px 11px; border-radius: 999px; box-shadow: 0 0 0 4px #a970ff2e, 0 10px 30px -6px #a970ffbf; backdrop-filter: blur(8px); white-space: nowrap; position: relative; overflow: hidden; --hold: 0; }
+.model-label.active { display: inline-flex; animation: pop .35s cubic-bezier(.2, 1.4, .4, 1); }
+.model-label b { font-size: 15px; line-height: 1; }
+.model-label em { font-style: normal; color: #d8c8ff; font-weight: 500; }
+.model-label em:empty { display: none; }
+.hold-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(var(--hold) * 100%); background: linear-gradient(90deg, #a970ff, #5ce1ff); box-shadow: 0 0 10px #a970ff; }
+@keyframes pop { from { opacity: 0; transform: translateY(0) scale(.7); } to { opacity: 1; transform: translateY(-8px) scale(1); } }
 .control-access { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .control-access:focus-within { inset: 12px 12px auto; width: auto; height: auto; clip-path: none; z-index: 3; display: flex; flex-wrap: wrap; gap: 7px; padding: 12px; border-radius: 10px; background: #fffffff5; }
 .control-access button { font: 12px system-ui, sans-serif; background: #eef1e7; border: 1px solid #d9dfd1; border-radius: 6px; padding: 9px; color: #344832; cursor: pointer; }

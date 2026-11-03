@@ -31,7 +31,7 @@ Run `npm ci` and `npm run build`. Deploy the **entire `dist/` directory**, prese
 </script>
 ```
 
-The host controls dimensions, with a minimum height of 280px. Shadow DOM isolates styles, labels and controls from the containing site. Background is transparent and typography uses system fonts, with no font requests. Set `--sidekick-button-background` and `--sidekick-button-color` on the mount element to customise the button. All DOM lookups are instance-local. Calling `destroy()` releases the renderer, resize observer, audio context, model workers, recording streams and gamepad polling; it is idempotent. The same element may be mounted again after destruction. Multiple instances can be mounted, but each model runtime consumes its own memory; prefer one active voice instance.
+The host controls dimensions, with a minimum height of 280px. Shadow DOM isolates styles, labels and controls from the containing site. The stage defaults to a dark showcase gradient that the spotlight and bloom are tuned for; set `--sidekick-stage-background` (for example to `transparent`) and `--sidekick-stage-radius` on the mount element to change it. Typography uses system fonts, with no font requests. Set `--sidekick-button-background` and `--sidekick-button-color` on the mount element to customise the button. All DOM lookups are instance-local. Calling `destroy()` releases the renderer, resize observer, audio context, model workers, recording streams and gamepad polling; it is idempotent. The same element may be mounted again after destruction. Multiple instances can be mounted, but each model runtime consumes its own memory; prefer one active voice instance.
 
 The example page also exposes `window.sidekick` for development console calls. The reusable ESM module does **not** create a global or mount itself.
 
@@ -77,4 +77,4 @@ There is no network API or HTTP inference service. These are browser-side JavaSc
 
 Use HTTPS or localhost, desktop Chrome with WebGPU and enough memory. Follow the COOP/COEP headers in `vite.config.ts` and serve all module/worker/WASM files with correct MIME types. The host CSP must permit its own module workers and the model asset hosts required by WebLLM, Transformers.js and Kokoro. Cross-origin iframes additionally need microphone permission policy delegation and compatible isolation; iframe voice has not been verified.
 
-The temporary controller and existing manifest remain the asset scaffold. For now, integrate a real GLB through the manifest and scene loader as described in [ASSETS.md](ASSETS.md); the public API does not yet expose arbitrary controller manifests or hot-swapping models.
+The component loads the PS5 DualSense GLB described in [ASSETS.md](ASSETS.md) and falls back to the generated placeholder (with an error notice) if it cannot load. Change models through the manifest and scene loader; the public API does not yet expose arbitrary controller manifests or hot-swapping models.

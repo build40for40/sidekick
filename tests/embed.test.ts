@@ -1,13 +1,14 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mock = vi.hoisted(() => ({
-  highlight: vi.fn(), animate: vi.fn(), view: vi.fn(), act: vi.fn(), demonstrate: vi.fn(), clearDemonstration: vi.fn(), showHints: vi.fn(), dispose: vi.fn(), loadAsset: vi.fn(),
+  highlight: vi.fn(), animate: vi.fn(), view: vi.fn(), act: vi.fn(), demonstrate: vi.fn(), clearDemonstration: vi.fn(), showHints: vi.fn(), dispose: vi.fn(), loadAsset: vi.fn(() => Promise.resolve()),
+  showPlaceholder: vi.fn(),
   capabilities: vi.fn(), loadLocal: vi.fn(), runtimeDispose: vi.fn(),
 }));
 vi.mock('../src/controller/scene', () => ({ ControllerScene: class {
   highlight = mock.highlight; animate = mock.animate; view = mock.view; act = mock.act;
   showHints = mock.showHints; dispose = mock.dispose; loadAsset = mock.loadAsset;
-  demonstrate = mock.demonstrate; clearDemonstration = mock.clearDemonstration;
+  demonstrate = mock.demonstrate; clearDemonstration = mock.clearDemonstration; showPlaceholder = mock.showPlaceholder;
 } }));
 vi.mock('../src/voice/local', () => ({ capabilities: mock.capabilities, loadLocal: mock.loadLocal }));
 import { createSidekick, type Sidekick } from '../src/index';
@@ -78,6 +79,14 @@ describe('embedding boundary', () => {
     expect(signal?.aborted).toBe(true); expect(root.childNodes).toHaveLength(0); expect(mock.dispose).toHaveBeenCalledOnce();
     api.destroy(); expect(mock.dispose).toHaveBeenCalledOnce();
     expect(() => api.ask('hello')).toThrow('destroyed');
+  });
+  it('credits the model and labels pack moves once a game is selected', () => {
+    const { api, root } = mount();
+    expect(mock.loadAsset).toHaveBeenCalledOnce();
+    const credit = root.querySelector<HTMLAnchorElement>('.credit')!;
+    expect(credit.textContent).toContain('AHarmlessPotato'); expect(credit.title).toContain('CC Attribution 4.0');
+    expect(root.querySelector('.pack-note')?.hasAttribute('hidden')).toBe(true);
+    api.setGame('fortnite'); expect(root.querySelector('.pack-note')?.hasAttribute('hidden')).toBe(false);
   });
   it('disposes loaded runtime resources on unmount', async () => {
     mock.loadLocal.mockResolvedValue({ adapters: { tutor: { interrupt: vi.fn() } }, dispose: mock.runtimeDispose, getGame: () => null, setGame: vi.fn() });

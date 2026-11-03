@@ -55,7 +55,7 @@ knowledge/
 
 ```sh
 node knowledge/tools/dry-run.mjs              # active game; or: dry-run.mjs fortnite
-node knowledge/tools/check-model.mjs public/assets/controller.glb
+node knowledge/tools/check-model.mjs src/assets/controller.glb
 ```
 
 `dry-run.mjs` checks each gold answer: schema shape, real PS5 buttons, tilt/squeeze on the right parts, only verified rows, `needs` steps first, steps copied exactly from the game file, matches `tests.csv`, under 15 words per step, no "simply"/"just". `check-model.mjs` lists which master labels are missing from the model and suggests renames.
