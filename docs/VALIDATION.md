@@ -15,7 +15,7 @@ Tests with fake media and adapters verify failure/cancellation logic only. They 
 
 The production build was opened in the available embedded Chromium browser on macOS. Verified temporary 3D rendering and labels, text fixture questions for right bumper and stick clicking, the virtual stick exercise, and the explicit local model setup flow. All three real models loaded and the Kokoro warmup completed. Reloading and enabling voice again also completed with cached model assets. This does not certify offline use.
 
-The first real Qwen generation selected a non-none action without a control ID; the application rejected it without executing it or speaking it. The generation schema was tightened so non-none actions require a control ID, alongside an explicit example in the system prompt. Further real-generation results are recorded below as available.
+The first real Qwen generation selected a non-none action without a control ID; the application rejected it without executing it or speaking it. The generation schema was tightened so non-none actions require a control ID, alongside an explicit example in the system prompt. After that change, the real Qwen response to “Where is the right bumper?” passed validation, revealed the shoulder view, and completed real Kokoro synthesis and Web Audio playback. The browser returned to ready and emitted a timing event. This was a typed question, not a microphone recording.
 
 ## Timing
 

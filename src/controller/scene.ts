@@ -22,7 +22,7 @@ export class ControllerScene {
   private reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private selected?: string;
   private hints = true;
-  constructor(private host: HTMLElement, private select: (id:string)=>void) {
+  constructor(private host: HTMLElement, private select: (id:string)=>void, private onView: (view:View)=>void = ()=>{}) {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio,2)); this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap; this.renderer.setClearColor(0,0);
     this.renderer.domElement.setAttribute('aria-label','Interactive 3D reference controller. Drag to orbit. Select controls or use the controls list.');
@@ -94,7 +94,7 @@ export class ControllerScene {
     this.nodes.clear(); this.rests.clear(); this.outlines.clear(); this.labelNodes.clear();
     found.forEach(({c,node})=>this.register(c.id,node!));
   }
-  view(view:View) { const position=new THREE.Vector3(...manifest.views[view]); if(this.reduced) this.camera.position.copy(position); else this.targetCamera=position; }
+  view(view:View) { this.onView(view); const position=new THREE.Vector3(...manifest.views[view]); if(this.reduced) this.camera.position.copy(position); else this.targetCamera=position; }
   highlight(id?:string) {
     this.selected=id;
     for(const [key,lines] of this.outlines) lines.forEach(l=>l.visible=this.hints && key===id);

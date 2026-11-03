@@ -39,7 +39,7 @@ function select(id:string,source:InputSource='virtual') {
   updateLesson();
   say(lesson && !lesson.complete && lesson.target!==id ? `That’s ${c.label}. Try ${byId.get(lesson.target)!.label}.` : c.description);
 }
-try { scene=new ControllerScene(el('scene'),id=>select(id)); if(manifest.asset) void scene.loadAsset(manifest.asset).catch(e=>say(`Asset could not load: ${e.message}`)); }
+try { scene=new ControllerScene(el('scene'),id=>select(id),view=>app.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button=>button.classList.toggle('selected',button.dataset.view===view))); if(manifest.asset) void scene.loadAsset(manifest.asset).catch(e=>say(`Asset could not load: ${e.message}`)); }
 catch { el('scene').innerHTML='<p class="render-error">3D rendering is unavailable. Try enabling hardware acceleration. You can still use the control list below.</p>'; }
 const voice=new VoiceOrchestrator(event=> {
   if(event.type==='phase') {
@@ -54,7 +54,7 @@ const voice=new VoiceOrchestrator(event=> {
     if(event.reply.exercise && event.reply.controlId) { lesson=transitionLesson(lesson,{type:'start',kind:event.reply.exercise,target:event.reply.controlId}); el<HTMLInputElement>('hints').checked=true; updateLesson(); }
   } else if(event.type==='error') say(event.message);
   else if(event.type==='transcript') transcript.textContent=`You: ${event.text}`;
-  else if(event.type==='timing') { console.info('[Sidekick local timing, milliseconds; firstAudible is scheduling estimate]',event.timings); }
+  else if(event.type==='timing') { console.info('[Sidekick local timing, milliseconds; firstAudible is scheduling estimate]',JSON.stringify(event.timings)); }
 });
 function ask(text:string) { if(downloadPending) return; voice.ask(text); }
 el('text-form').addEventListener('submit',e=>{e.preventDefault(); ask(question.value); question.value='';});
