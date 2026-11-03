@@ -24,7 +24,6 @@ Run `npm ci` and `npm run build`. Deploy the **entire `dist/` directory**, prese
   // tutor.setView('shoulders');
   // tutor.startExercise('find', 'cross');
   // tutor.setHints(false);
-  // tutor.getMoves(); await tutor.playMove('wall_back');
 
   // On host unmount/navigation:
   // unsubscribe();
@@ -52,9 +51,6 @@ All functions are typed through `Sidekick` and `createSidekick`. Calls after des
 | `setView('front' \| 'shoulders' \| 'rear')` | Move the camera. |
 | `startExercise('find' \| 'click' \| 'practise', controlId)` | Start application-owned practice. `click` requires a stick. |
 | `setHints(boolean)` | Show/hide the current exercise's hint. |
-| `getMoves()` | List the game moves the controller can demonstrate (featured first), each with its steps. Fortnite moves come from Samira's knowledge pack (web-sourced, not yet checked on a console). |
-| `playMove(moveId)` | Demonstrate a move step by step: spotlight, camera, press and hold. Resolves `true` when it finishes, `false` if interrupted. Unknown IDs throw. The current step is shown as a short notice, with the knowledge-pack caveat in the corner note. |
-| `stopMove()` | Stop a running move and clear its highlight. Selecting a control, starting an exercise or another tutor action also stops it. |
 | `setCaptions(boolean)` | Opt into captions inside the component; alternatively render host captions from reply events. |
 | `setGame(gameOrNull)` | Explicitly select `overcooked2`, `fortnite`, or `active` (the runtime pack configuration); `null` restores controller-only mode. Cancels playback and clears conversation/lesson state. Local questions that name an available game also establish context. |
 | `setPlayback({ speed, maxRepeats })` | Set animation speed (`slow`, `medium`, `fast`) and total visual passes (positive integer or `null` for unlimited). Defaults: medium/unlimited. Cancels the current demonstration; settings apply to the next one. Narration is spoken once, independently of silent visual repeats. |
@@ -63,7 +59,7 @@ All functions are typed through `Sidekick` and `createSidekick`. Calls after des
 | `on(listener)` | Subscribe to typed events; returns an unsubscribe function. |
 | `destroy()` | Abort and release resources, clear the component, emit `destroyed`, detach subscriptions. |
 
-The event union includes `phase`, `progress`, `mode`, `transcript`, `reply`, `error`, `timing`, `selection`, `lesson`, `move`, `view`, `gamepad` and `destroyed`. `move` carries `{ id, step, complete }` or `null`, so a host can render its own move picker or step list. Host text input, captions, stop/repeat and lesson UI can be completely separate from the embedded view. Virtual and physical input remain distinguishable through selection and lesson events. Permission, model and inference errors are emitted and shown in the component. Synchronous validation errors throw; initialization errors also reject its promise. Questions and recording requests during setup are rejected.
+The event union includes `phase`, `progress`, `mode`, `transcript`, `reply`, `error`, `timing`, `selection`, `lesson`, `view`, `gamepad` and `destroyed`. Host text input, captions, stop/repeat and lesson UI can be completely separate from the embedded view. Virtual and physical input remain distinguishable through selection and lesson events. Permission, model and inference errors are emitted and shown in the component. Synchronous validation errors throw; initialization errors also reject its promise. Questions and recording requests during setup are rejected.
 
 Mount options also accept `game` and `playback`. Leaving `game` unset never selects the game's configured default. `setGame('active')` is an explicit request to use `knowledge/active-game.json`; changing that JSON and rebuilding switches the default pack without application-code changes. Vite emits runtime knowledge files as separate assets; deploy them alongside the ESM entry and workers. The master PS5 labels and geometry are built together.
 
