@@ -1,4 +1,5 @@
-import fortnite from '../../knowledge/games/fortnite.json';
+// Fortnite only for now; knowledge/active-game.json is not wired in yet.
+import fortnite from '../../knowledge/games/fortnite/controls.json';
 // Imported as a URL so the GLB is emitted beside the chunks and resolves wherever dist/ is deployed.
 import controllerAsset from '../assets/controller.glb?url';
 export type View = 'front' | 'shoulders' | 'rear';
@@ -72,8 +73,8 @@ const shortTitles: Record<string, string> = { crouch: 'Crouch', reload: 'Reload'
 /** Combos that chain two pack actions. */
 const combos: Sequence[] = [
   { id: 'aim_shoot', title: 'Aim & shoot', game: 'Fortnite', aliases: ['aim and shoot', 'aim then shoot'], summary: 'Hold L2 to aim, then squeeze R2 to shoot.', steps: [...stepsOf('aim'), ...stepsOf('shoot')] },
-  { id: 'wall_back', title: 'Build a wall', game: 'Fortnite', aliases: ['build a wall', 'quick wall', 'cover'], summary: 'Circle switches to build mode, R2 places a wall, Circle again takes your weapon back out.', steps: [...stepsOf('place_wall'), { ...stepsOf('build_mode')[0], caption: 'Press Circle · Back to your weapon' }] },
-  { id: 'ramp_jump', title: 'Build a ramp', game: 'Fortnite', aliases: ['build a ramp', 'ramp and jump', 'climb'], summary: 'Circle for build mode, L2 places a ramp, Cross jumps onto it.', steps: [...stepsOf('place_stairs'), ...stepsOf('jump')] },
+  { id: 'wall_back', title: 'Build a wall', game: 'Fortnite', aliases: ['build a wall', 'quick wall', 'cover'], summary: 'Circle switches to build mode, R2 places a wall, Circle again takes your weapon back out. Building only works in Build matches, not Zero Build.', steps: [...stepsOf('place_wall'), { ...stepsOf('build_mode')[0], caption: 'Press Circle · Back to your weapon' }] },
+  { id: 'ramp_jump', title: 'Build a ramp', game: 'Fortnite', aliases: ['build a ramp', 'ramp and jump', 'climb'], summary: 'Circle for build mode, L2 places a ramp, Cross jumps onto it. Building only works in Build matches, not Zero Build.', steps: [...stepsOf('place_stairs'), ...stepsOf('jump')] },
 ].filter(c => c.steps.length);
 /** Fortnite on PS5, from the knowledge pack (Builder Pro defaults; "web" = from a published source, not yet checked on a console). */
 export const sequences: Sequence[] = [
