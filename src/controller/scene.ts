@@ -22,6 +22,8 @@ const ease = (t: number) => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
 // Overall stage brightness. Scales lights, glow and bloom only; polish() keeps the clearcoat gloss.
 const LUMA = .5;
 const BASE_FOV = 32;
+/** After the app turns the camera to show a control, return to the flat front view this long after everything stops. */
+const SETTLE_MS = 3500;
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 function radialTexture(stops: [number, string][]) {
@@ -92,6 +94,8 @@ export class ControllerScene {
   private halo: THREE.Sprite;
   private ringTex = ringTexture();
   private sequenceToken = 0;
+  private playingToken = -1;
+  private autoFramed = false; // the app, not the user, moved the camera
   private disposed = false;
   private lastInteraction = performance.now();
   private lastFrame = performance.now();
@@ -110,8 +114,8 @@ export class ControllerScene {
 
     this.camera.position.set(...manifest.views.front);
     this.orbit = new OrbitControls(this.camera, r.domElement);
-    Object.assign(this.orbit, { enableDamping: !this.reduced, dampingFactor: .08, minDistance: 3.2, maxDistance: 13, enablePan: false, autoRotateSpeed: .55 });
-    this.orbit.addEventListener('start', () => { this.targetCamera = undefined; this.lastInteraction = performance.now(); });
+    Object.assign(this.orbit, { enableDamping: !this.reduced, dampingFactor: .08, minDistance: 3.2, maxDistance: 13, enablePan: false });
+    this.orbit.addEventListener('start', () => { this.targetCamera = undefined; this.autoFramed = false; this.lastInteraction = performance.now(); });
 
     // Lighting: a soft studio rig plus coloured rims, then a spotlight that takes over during a lesson.
     this.scene.add(this.hemi);
@@ -243,14 +247,14 @@ export class ControllerScene {
 
   showPlaceholder() { this.model.visible = true; }
   view(view:View) {
-    this.onView(view); this.lastInteraction = performance.now();
+    this.onView(view); this.lastInteraction = performance.now(); this.autoFramed = false;
     const position = new THREE.Vector3(...manifest.views[view]);
     this.targetLook.set(0, 0, 0);
     if (this.reduced) this.camera.position.copy(position); else this.targetCamera = position;
   }
   /** Dolly towards a control from the angle that shows it best. */
   private frame(id: string) {
-    const c = byId.get(id)!; const at = this.worldOf(id); this.onView(c.view); this.lastInteraction = performance.now();
+    const c = byId.get(id)!; const at = this.worldOf(id); this.onView(c.view); this.lastInteraction = performance.now(); this.autoFramed = true;
     const dir = new THREE.Vector3(...manifest.views[c.view]).normalize();
     const look = at.clone().multiplyScalar(.55);
     const position = look.clone().add(dir.multiplyScalar(c.view === 'front' ? 6.4 : 6.8));
@@ -284,7 +288,7 @@ export class ControllerScene {
 
   /** Play a combo step by step: spotlight, camera, press, caption. */
   async playSequence(sequence: Sequence, onStep: (index: number, step: SequenceStep) => void = () => {}) {
-    const token = ++this.sequenceToken;
+    const token = ++this.sequenceToken; this.playingToken = token;
     for (const [i, step] of sequence.steps.entries()) {
       if (token !== this.sequenceToken) return false;
       onStep(i, step);
@@ -294,6 +298,8 @@ export class ControllerScene {
       await this.animate(step.control, step.action, step.ms);
       await wait(this.reduced ? 200 : 380);
     }
+    this.lastInteraction = performance.now();
+    if (this.playingToken === token) this.playingToken = -1;
     return token === this.sequenceToken;
   }
   stopSequence() { this.sequenceToken++; }
@@ -315,7 +321,7 @@ export class ControllerScene {
     const { id, resolve } = this.motion; const node = this.nodes.get(id)!; const rest = this.rests.get(id)!;
     node.position.copy(rest.position); node.quaternion.copy(rest.quaternion);
     this.labelNodes.get(id)?.style.setProperty('--hold', '0');
-    this.motion = undefined; resolve?.();
+    this.motion = undefined; this.lastInteraction = performance.now(); resolve?.();
   }
 
   private ripple(id: string) {
@@ -405,10 +411,9 @@ export class ControllerScene {
       const size = .3 + 1.5 * ease(k); r.sprite.scale.set(size, size, size); r.sprite.material.opacity = 1 - k;
     }
 
-    // Idle: a slow turntable and a gentle float, paused while a lesson is running.
-    const idle = !this.reduced && !this.selected && !this.motion && now - this.lastInteraction > 6000;
-    this.orbit.autoRotate = idle;
-    if (!this.reduced) this.model.position.y = .04 * Math.sin(time * 1.1) * (1 - this.focus);
+    // At rest the controller stays still. Once an answer has finished, ease back to the flat front view.
+    const playing = this.playingToken === this.sequenceToken;
+    if (this.autoFramed && !this.motion && !playing && now - this.lastInteraction > SETTLE_MS) this.view('front');
 
     this.orbit.update(dt);
     this.composer.render(dt);
