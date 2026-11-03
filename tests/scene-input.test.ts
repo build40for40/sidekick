@@ -4,16 +4,26 @@ import { Object3D, Scene } from 'three';
 const render = vi.hoisted(() => ({ frame: undefined as (() => void) | undefined, draw: vi.fn() }));
 vi.mock('three', async importOriginal => {
   const actual = await importOriginal<typeof import('three')>();
-  return { ...actual, WebGLRenderer: class {
+  return { ...actual, PMREMGenerator: class {
+    fromScene() { return { texture: new actual.Texture() }; } dispose() {}
+  }, WebGLRenderer: class {
     domElement = document.createElement('canvas'); shadowMap = {};
     setPixelRatio() {} setClearColor() {} setSize() {} dispose() {}
     render = render.draw;
     setAnimationLoop(callback: () => void) { render.frame = callback; }
   } };
 });
-vi.mock('three/addons/controls/OrbitControls.js', () => ({ OrbitControls: class {
-  target = { set() {} }; addEventListener() {} update() {} dispose() {}
+vi.mock('three/addons/controls/OrbitControls.js', async () => ({ OrbitControls: class {
+  target = new Object3D().position; addEventListener() {} update() {} dispose() {}
 } }));
+vi.mock('three/addons/postprocessing/EffectComposer.js', () => ({ EffectComposer: class {
+  scene?: Scene;
+  addPass(pass: { scene?: Scene }) { if (pass.scene) this.scene = pass.scene; }
+  render() { render.draw(this.scene); } setSize() {} dispose() {}
+} }));
+vi.mock('three/addons/postprocessing/RenderPass.js', () => ({ RenderPass: class { constructor(public scene: Scene) {} } }));
+vi.mock('three/addons/postprocessing/UnrealBloomPass.js', () => ({ UnrealBloomPass: class { dispose() {} } }));
+vi.mock('three/addons/postprocessing/OutputPass.js', () => ({ OutputPass: class {} }));
 import { ControllerScene } from '../src/controller/scene';
 let scene: ControllerScene | undefined;
 afterEach(() => { scene?.dispose(); scene = undefined; vi.restoreAllMocks(); vi.unstubAllGlobals(); render.draw.mockClear(); });
@@ -21,6 +31,7 @@ function setup(reduced = false) {
   vi.stubGlobal('matchMedia', () => ({ matches: reduced }));
   vi.stubGlobal('devicePixelRatio', 1);
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ createRadialGradient: () => ({ addColorStop() {} }), fillRect() {}, beginPath() {}, arc() {}, stroke() {} } as any);
   const view = vi.fn(); scene = new ControllerScene(document.createElement('div'), vi.fn(), view);
   render.frame!();
   const model = render.draw.mock.lastCall![0] as Scene;
@@ -39,7 +50,7 @@ it('renders simultaneous held input, overrides a tutor animation, restores relea
   ]);
   render.frame!();
   expect(cross.position.y).toBeCloseTo(crossRest.y - .075);
-  expect(trigger.rotation.x).toBeCloseTo(triggerRest.x + .35 * .6);
+  expect(trigger.rotation.x).toBeCloseTo(triggerRest.x - .42 * .6);
   expect(circle.position.toArray()).toEqual(circleRest.toArray());
   expect(active(cross)).toBe(true); expect(active(trigger)).toBe(true); expect(active(circle)).toBe(false);
   expect(view).not.toHaveBeenCalled();

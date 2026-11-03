@@ -2,9 +2,9 @@
 
 A welcoming, private game guide powered by a local LLM, built with vanilla TypeScript, Vite and Three.js. The intended experience is to ask questions such as “How do I jump in this game?” or “How do I do this action?” and receive guidance through game actions, sequences of actions and components of the game. The interactive 3D controller supports that guidance by showing the relevant inputs and how to use them. Local voice adapters use Whisper, WebLLM and Kokoro in workers.
 
-The tutor starts with PS5 controller explanations and no selected game. Local mode can load verified Overcooked! 2 or Fortnite knowledge, answer follow-up questions, and narrate multi-step demonstrations. A game must be named in the question or selected by the host. Broader gameplay knowledge beyond the supplied pack is unavailable.
+The tutor starts with PS5 controller explanations and no selected game. Local mode can load verified Overcooked! 2 or Fortnite knowledge, answer follow-up questions, and narrate multi-step demonstrations on the 3D controller. A game must be named in the question or selected by the host. Broader gameplay knowledge beyond the supplied pack is unavailable. Game moves are from Samira's pack (web-sourced, not yet checked on a console).
 
-**This is an early scaffold, not a verified complete voice product.** It starts in clearly labelled development tutor mode with deterministic text replies. The temporary 3D controller will be replaced by Blender assets later. Real local inference adapters are implemented; browser verification status is recorded in [VALIDATION.md](docs/VALIDATION.md).
+**This is an early scaffold, not a verified complete voice product.** It starts in clearly labelled development tutor mode with deterministic text replies. The 3D controller is a CC BY PS5 DualSense scan, split into one node per control (see [ASSETS.md](docs/ASSETS.md)). It can demonstrate Fortnite moves from Samira's knowledge pack (web-sourced, not yet checked on a console). Real local inference adapters are implemented; browser verification status is recorded in [VALIDATION.md](docs/VALIDATION.md).
 
 ## Run
 
@@ -53,8 +53,8 @@ The first download can be large and model initialization can take several minute
 | Area | Location | Responsibility |
 | --- | --- | --- |
 | Embedding API | `src/index.ts`, `src/embed.ts` | Isolated component, typed public functions, events and lifecycle |
-| Controller facts | `src/controller/manifest.ts` | Stable IDs, names, labels, aliases, descriptions, targets, views, movement, gamepad mappings |
-| Rendering | `src/controller/scene.ts` | Temporary controller, GLB loading, raycast selection, outlines, labels, local motion and camera |
+| Controller facts | `src/controller/manifest.ts`, `knowledge/` | Stable IDs, names, labels, glyphs, aliases, descriptions, targets, views, movement, gamepad mappings, game moves |
+| Rendering | `src/controller/scene.ts` | Showcase stage, GLB loading, raycast selection, spotlight and glow, labels, local motion, move playback and camera |
 | Lessons | `src/tutor/lesson.ts` | Explicit exercise state, hint state and input-confirmed completion |
 | Tutor boundary | `src/tutor/schema.ts` | Allowlisted JSON schema and independent runtime validation |
 | Development tutor | `src/tutor/development.ts` | Labelled deterministic fixture for scaffold testing |

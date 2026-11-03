@@ -1,6 +1,6 @@
 import styles from './style.css?inline';
 import { ControllerScene } from './controller/scene';
-import { byId, controls, type View } from './controller/manifest';
+import { byId, controls, manifest, type View } from './controller/manifest';
 import { PhysicalInput, inputActive, type GamepadState } from './controller/gamepad';
 import { transitionLesson, type Lesson, type LessonKind, type InputSource } from './tutor/lesson';
 import { validateReply, replySteps, type TutorReply } from './tutor/schema';
@@ -80,7 +80,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   const root = ownedRoots.get(container) ?? container.attachShadow({ mode: 'open' });
   ownedRoots.set(container, root); activeMounts.add(container);
   root.innerHTML = `<style>${styles}</style><section class="sidekick" aria-label="Controller tutor">
-    <span class="asset-note">Temporary controller · text demo</span>
+    <p class="asset-note"><a class="credit" target="_blank" rel="noopener"></a><span class="demo-note"> · text demo</span><span class="pack-note" hidden><br>Game moves are from Samira's pack (web-sourced, not yet checked on a console).</span></p>
     <div class="scene"></div>
     <div class="record-area"><p class="notice" role="status" aria-live="polite" hidden></p>
     <p class="caption" aria-live="polite" hidden></p>
@@ -115,7 +115,8 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     button.setAttribute('aria-pressed', String(phase === 'listening'));
     label.textContent = loading ? 'Loading…' : phase === 'listening' ? 'Finish' : phase === 'transcribing' ? 'Transcribing…' : phase === 'thinking' ? 'Thinking…' : phase === 'speaking' ? 'Interrupt' : consentPrompt ? 'Download local voice' : 'Record';
     button.setAttribute('aria-label', phase === 'listening' ? 'Finish recording' : loading ? 'Downloading local voice models' : consentPrompt ? 'Download local voice models' : state.mode === 'local' ? 'Start recording' : 'Set up local voice');
-    find('.asset-note').textContent = state.mode === 'local' ? 'Temporary controller' : 'Temporary controller · text demo';
+    find('.demo-note').hidden = state.mode === 'local';
+    find('.pack-note').hidden = !state.game;
     notice.textContent = state.error ?? (loading ? `${state.progress?.stage ?? 'Loading local voice'}${state.progress?.progress === undefined ? '' : ` · ${Math.round(state.progress.progress)}%`}` : consentPrompt ? 'Download local voice models to record. Downloads may be large and take several minutes. Audio stays on your device.' : phase === 'listening' ? 'Listening. Click again to finish.' : '');
     notice.hidden = !notice.textContent;
     caption.textContent = state.caption;
@@ -142,6 +143,13 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   try {
     scene = new ControllerScene(find('.scene'), id => select(id, 'virtual'), view => emit({ type: 'view', view }));
   } catch (error) { root.replaceChildren(); activeMounts.delete(container); throw error; }
+  const credit = find<HTMLAnchorElement>('.credit');
+  credit.href = 'https://skfb.ly/opKOx'; credit.title = `3D model: ${manifest.credit}`; credit.textContent = 'DualSense model by AHarmlessPotato · CC BY 4.0';
+  if (manifest.asset) scene.loadAsset(manifest.asset).catch((error: unknown) => {
+    if (state.destroyed) return;
+    scene.showPlaceholder(); state.error = `The controller model could not load: ${error instanceof Error ? error.message : String(error)}`;
+    render(); emit({ type: 'error', message: state.error });
+  });
   const player = new DemonstrationPlayer((step,durationMs) => {
     scene.demonstrate(step,durationMs); state.selectedControl = step.controlId;
   }, () => scene.clearDemonstration(),options.playback);
