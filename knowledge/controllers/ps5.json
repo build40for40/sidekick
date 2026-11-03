@@ -1,0 +1,204 @@
+{
+  "id": "ps5",
+  "name": "PlayStation 5 DualSense controller",
+  "note": "MASTER BUTTON LABELS (owner: Samira). Ben's manifest and the 3D model's node names must use these exact ids. Ids use the same style as Ben's src/controller/manifest.ts (kebab-case, sticks click with action 'press'). They must also match the node names in the 3D model. motion = Ben's Motion type: press | trigger | stick.",
+  "buttons": [
+    {
+      "id": "cross",
+      "name": "Cross",
+      "aka": [
+        "X",
+        "the X button",
+        "cross"
+      ],
+      "zone": "right face buttons, bottom",
+      "motion": "press"
+    },
+    {
+      "id": "circle",
+      "name": "Circle",
+      "aka": [
+        "O",
+        "the circle button"
+      ],
+      "zone": "right face buttons, right",
+      "motion": "press"
+    },
+    {
+      "id": "square",
+      "name": "Square",
+      "aka": [
+        "the square button"
+      ],
+      "zone": "right face buttons, left",
+      "motion": "press"
+    },
+    {
+      "id": "triangle",
+      "name": "Triangle",
+      "aka": [
+        "the triangle button"
+      ],
+      "zone": "right face buttons, top",
+      "motion": "press"
+    },
+    {
+      "id": "dpad-up",
+      "name": "D-pad up",
+      "aka": [
+        "up arrow",
+        "up on the arrows"
+      ],
+      "zone": "left arrows, top",
+      "motion": "press"
+    },
+    {
+      "id": "dpad-down",
+      "name": "D-pad down",
+      "aka": [
+        "down arrow",
+        "down on the arrows"
+      ],
+      "zone": "left arrows, bottom",
+      "motion": "press"
+    },
+    {
+      "id": "dpad-left",
+      "name": "D-pad left",
+      "aka": [
+        "left arrow",
+        "left on the arrows"
+      ],
+      "zone": "left arrows, left",
+      "motion": "press"
+    },
+    {
+      "id": "dpad-right",
+      "name": "D-pad right",
+      "aka": [
+        "right arrow",
+        "right on the arrows"
+      ],
+      "zone": "left arrows, right",
+      "motion": "press"
+    },
+    {
+      "id": "l1",
+      "name": "L1",
+      "aka": [
+        "left bumper",
+        "left shoulder button"
+      ],
+      "zone": "top edge, left, front",
+      "motion": "press"
+    },
+    {
+      "id": "r1",
+      "name": "R1",
+      "aka": [
+        "right bumper",
+        "right shoulder button"
+      ],
+      "zone": "top edge, right, front",
+      "motion": "press"
+    },
+    {
+      "id": "l2",
+      "name": "L2",
+      "aka": [
+        "left trigger"
+      ],
+      "zone": "top edge, left, back",
+      "motion": "trigger"
+    },
+    {
+      "id": "r2",
+      "name": "R2",
+      "aka": [
+        "right trigger"
+      ],
+      "zone": "top edge, right, back",
+      "motion": "trigger"
+    },
+    {
+      "id": "left-stick",
+      "name": "Left stick",
+      "aka": [
+        "left thumbstick",
+        "left joystick",
+        "L3",
+        "click the left stick",
+        "press the left stick in"
+      ],
+      "zone": "centre, bottom left",
+      "use": "move your character; press it straight down to click it (L3)",
+      "motion": "stick"
+    },
+    {
+      "id": "right-stick",
+      "name": "Right stick",
+      "aka": [
+        "right thumbstick",
+        "right joystick",
+        "R3",
+        "click the right stick",
+        "press the right stick in"
+      ],
+      "zone": "centre, bottom right",
+      "use": "look around / turn the camera; press it straight down to click it (R3)",
+      "motion": "stick"
+    },
+    {
+      "id": "touchpad",
+      "name": "Touchpad",
+      "aka": [
+        "the big pad in the middle"
+      ],
+      "zone": "centre, top",
+      "motion": "press"
+    },
+    {
+      "id": "create",
+      "name": "Create",
+      "aka": [
+        "share button"
+      ],
+      "zone": "top left of the touchpad",
+      "motion": "press"
+    },
+    {
+      "id": "options",
+      "name": "Options",
+      "aka": [
+        "menu button",
+        "start"
+      ],
+      "zone": "top right of the touchpad",
+      "motion": "press"
+    },
+    {
+      "id": "ps",
+      "name": "PS button",
+      "aka": [
+        "PlayStation button",
+        "home button"
+      ],
+      "zone": "centre, below the touchpad",
+      "motion": "press"
+    },
+    {
+      "id": "mute",
+      "name": "Mute",
+      "aka": [
+        "mic button"
+      ],
+      "zone": "centre, below the PS button",
+      "motion": "press"
+    }
+  ],
+  "actions": {
+    "press": "press and let go (on a stick: press it straight down to click it)",
+    "tilt": "push a stick in a direction",
+    "squeeze": "pull a trigger (L2/R2)"
+  }
+}

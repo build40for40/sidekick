@@ -1,0 +1,323 @@
+{
+  "id": "fortnite",
+  "name": "Fortnite (Battle Royale)",
+  "controller": "ps5",
+  "default_mode": "zero_build",
+  "preset": "Builder Pro (the usual default; Combat Pro has the same combat buttons)",
+  "source": "Builder Pro PS4/PS5 tables in Outsider Gaming's Fortnite controls guide (https://outsidergaming.com/fortnite-complete-controls-guide-pc-xbox-one-ps4-switch-and-mobile/), checked 3 Nov 2026. Epic's own help page only lists the preset names (Old School, Quick Builder, Combat Pro, Builder Pro, Custom): https://www.epicgames.com/help/en-US/c-202300000001636/c-202300000001721/how-to-configure-a-controller-in-fortnite-a202300000017260",
+  "note": "verified: \"device\" = checked on a real PS5 controls screen. \"web\" = taken from the published source above; OK to use for the demo, but check on a PS5 when you can (the source dates from before Zero Build launched). false = a guess; the LLM must not use it. Players can remap buttons, so these are defaults only.",
+  "modes": {
+    "zero_build": "Zero Build: normal play with no building. Moving, shooting, picking things up. This is the mode we're teaching.",
+    "build": "Build mode: placing walls, floors, stairs and roofs. Only in normal Build matches, not Zero Build."
+  },
+  "actions": [
+    {
+      "id": "move",
+      "plain": "Walk or run around",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "left-stick",
+          "action": "tilt"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "look",
+      "plain": "Look around / turn",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "right-stick",
+          "action": "tilt"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "jump",
+      "plain": "Jump",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "cross",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "sprint",
+      "plain": "Sprint",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "left-stick",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "auto_sprint",
+      "plain": "Keep sprinting without holding anything",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "left-stick",
+          "action": "press",
+          "times": 2
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "crouch",
+      "plain": "Crouch down",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "right-stick",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "shoot",
+      "plain": "Fire your weapon",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "r2",
+          "action": "squeeze"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "aim",
+      "plain": "Aim down the sights to shoot more accurately",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "l2",
+          "action": "squeeze",
+          "hold": true
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "reload",
+      "plain": "Reload your weapon",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "square",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "interact",
+      "plain": "Open a chest, pick something up, open a door",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "square",
+          "action": "press",
+          "hold": true
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "next_item",
+      "plain": "Switch to the next weapon or item",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "r1",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "previous_item",
+      "plain": "Switch to the previous weapon or item",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "l1",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "pickaxe",
+      "plain": "Take out your pickaxe (to smash things for materials)",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "triangle",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "map",
+      "plain": "Open the map",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "touchpad",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "inventory",
+      "plain": "Open your backpack to see and move your items",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "dpad-up",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "emote",
+      "plain": "Open the dance and emote wheel",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "dpad-down",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "place_marker",
+      "plain": "Ping a spot so your team can see it",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "dpad-left",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "squad_comms",
+      "plain": "Send your team a quick message",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "dpad-right",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "game_menu",
+      "plain": "Open the game menu (settings, leave the match)",
+      "mode": "zero_build",
+      "ps5": [
+        {
+          "controlId": "options",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "build_mode",
+      "plain": "Switch into building",
+      "mode": "build",
+      "ps5": [
+        {
+          "controlId": "circle",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "edit_piece",
+      "plain": "Edit a piece you've built (e.g. make a window or door)",
+      "mode": "build",
+      "ps5": [
+        {
+          "controlId": "circle",
+          "action": "press",
+          "hold": true
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "place_wall",
+      "plain": "Build a wall in front of you",
+      "mode": "build",
+      "needs": "build_mode",
+      "ps5": [
+        {
+          "controlId": "r2",
+          "action": "squeeze"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "place_floor",
+      "plain": "Build a floor under you",
+      "mode": "build",
+      "needs": "build_mode",
+      "ps5": [
+        {
+          "controlId": "r1",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "place_stairs",
+      "plain": "Build a ramp / stairs",
+      "mode": "build",
+      "needs": "build_mode",
+      "ps5": [
+        {
+          "controlId": "l2",
+          "action": "squeeze"
+        }
+      ],
+      "verified": "web"
+    },
+    {
+      "id": "place_roof",
+      "plain": "Build a roof (cone) above you",
+      "mode": "build",
+      "needs": "build_mode",
+      "ps5": [
+        {
+          "controlId": "l1",
+          "action": "press"
+        }
+      ],
+      "verified": "web"
+    }
+  ]
+}
