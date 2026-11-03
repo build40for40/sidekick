@@ -10,3 +10,6 @@ Vanilla TypeScript, Vite, Three.js. No UI framework. This is an early scaffold f
 - Preserve model node transforms and use semantic IDs from the manifest.
 - Document unverified browser/model behaviour honestly.
 - Do not commit model weights, Blender backups, credentials or personal data.
+
+- Keep the embedded view minimal: controller and recording button, with contextual consent/status only. Host features belong in the typed public API.
+- Preserve Shadow DOM style isolation and release resources in `destroy()`. Build the demo, ESM entry, worker assets and type declarations together.

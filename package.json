@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && tsc -p tsconfig.lib.json",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run"
   },
@@ -17,11 +17,18 @@
   },
   "devDependencies": {
     "@types/three": "0.183.1",
+    "happy-dom": "21.0.4",
     "typescript": "5.9.3",
     "vite": "8.3.5",
     "vitest": "5.1.0"
   },
   "overrides": {
     "sharp": "0.35.5"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/sidekick.js"
+    }
   }
 }

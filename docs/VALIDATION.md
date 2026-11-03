@@ -4,7 +4,7 @@ Initial scaffold, 3 November 2026. This record separates automated fixture check
 
 ## Automated
 
-- 28 tests pass: response validation, unsupported control/action rejection, lesson transitions, virtual versus physical completion, hint removal, unknown gamepad mappings, phase transitions, cancellation during generation and synthesis, stale worker messages, microphone-denial recovery, late microphone permission cleanup, download failure cleanup, unsupported WebGPU, and 12 deterministic evaluation cases.
+- 35 tests pass: response validation, unsupported control/action rejection, lesson transitions, virtual versus physical completion, hint removal, unknown gamepad mappings, phase transitions, cancellation during generation and synthesis, stale worker messages, microphone-denial recovery, late microphone permission cleanup, download failure cleanup, unsupported WebGPU, 12 deterministic evaluation cases, plus embedding API validation, style/mount isolation, consent, initialization deduplication, aborted downloads, cleanup and remounting.
 - TypeScript strict checking and Vite production build pass.
 - npm audit reports zero known vulnerabilities with the lockfile and Sharp override.
 - Production bundles include lazy model runtimes and large WASM files. Vite emits a large-chunk warning. Model runtime size and memory remain optimisation work.
@@ -13,9 +13,15 @@ Tests with fake media and adapters verify failure/cancellation logic only. They 
 
 ## Browser checks
 
-The production build was opened in the available embedded Chromium browser on macOS. Verified temporary 3D rendering and labels, text fixture questions for right bumper and stick clicking, the virtual stick exercise, and the explicit local model setup flow. All three real models loaded and the Kokoro warmup completed. Reloading and enabling voice again also completed with cached model assets. This does not certify offline use.
+The original scaffold production build was opened in the available embedded Chromium browser on macOS. Verified temporary 3D rendering and labels, text fixture questions for right bumper and stick clicking, the virtual stick exercise, and the explicit local model setup flow. All three real models loaded and the Kokoro warmup completed. Reloading and enabling voice again also completed with cached model assets. This does not certify offline use.
 
 The first real Qwen generation selected a non-none action without a control ID; the application rejected it without executing it or speaking it. The generation schema was tightened so non-none actions require a control ID, alongside an explicit example in the system prompt. After that change, the real Qwen response to “Where is the right bumper?” passed validation, revealed the shoulder view, and completed real Kokoro synthesis and Web Audio playback. The browser returned to ready and emitted a timing event. The second real prompt, “What does clicking the stick mean?”, also completed with a brief straight-down-press explanation and local speech. These were typed questions, not microphone recordings. The 390px layout had a 390px scroll width with no horizontal overflow.
+
+## Embedded revision
+
+The UI is now a minimal Shadow DOM component with a Record button and a public ESM API. The production build, generated TypeScript declarations, and import of the built public entry without a browser DOM pass. Relative worker/chunk paths were inspected for same-origin subdirectory hosting. Embedding tests exercise the API with mocked rendering/models; they are not a real-browser integration test.
+
+The existing preview was reloaded, but browser-control tooling then failed to inspect it. Native browser fallback was also unavailable. The revised minimal view, keyboard focus controls, actual host-site mounting, and real voice in that view have therefore not been visually/browser verified in this pass. Earlier model/voice measurements below apply to the original scaffold and are not new measurements of the embed revision.
 
 ## Timing
 

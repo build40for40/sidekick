@@ -1,4 +1,6 @@
 import fortnite from '../../knowledge/games/fortnite.json';
+// Imported as a URL so the GLB is emitted beside the chunks and resolves wherever dist/ is deployed.
+import controllerAsset from '../assets/controller.glb?url';
 export type View = 'front' | 'shoulders' | 'rear';
 export type Motion = 'press' | 'trigger' | 'stick';
 export interface Control {
@@ -84,7 +86,7 @@ export const featuredMoves = ['jump', 'crouch', 'reload', 'aim_shoot', 'wall_bac
 export const sequenceById = new Map(sequences.map(s => [s.id, s]));
 
 export const manifest = {
-  name: 'PS5 DualSense', asset: '/assets/controller.glb' as string | null,
+  name: 'PS5 DualSense', asset: controllerAsset as string | null,
   temporary: false, controls,
   credit: '“Playstation 5 Dualsense” (https://skfb.ly/opKOx) by AHarmlessPotato, licensed under CC Attribution 4.0 (http://creativecommons.org/licenses/by/4.0/). Modified: parts separated, renamed and re-pivoted.',
   views: { front: [0,6.2,5.6], shoulders: [0,3.2,-6.4], rear: [0,-1.2,-7.4] } as Record<View, [number,number,number]>,

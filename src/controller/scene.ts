@@ -30,6 +30,18 @@ function radialTexture(stops: [number, string][]) {
   stops.forEach(([o, col]) => grad.addColorStop(o, col)); g.fillStyle = grad; g.fillRect(0,0,256,256);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
+/** Dispose geometry, materials, their textures and light shadow maps below a root. */
+function disposeTree(root: THREE.Object3D) {
+  root.traverse(object => {
+    const mesh = object as THREE.Mesh;
+    mesh.geometry?.dispose();
+    if (mesh.material) for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose();
+      material.dispose();
+    }
+    if (object instanceof THREE.Light) (object as THREE.Light & { shadow?: THREE.LightShadow }).shadow?.dispose();
+  });
+}
 function ringTexture() {
   const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d')!;
   g.strokeStyle = '#ffffff'; g.lineWidth = 10; g.shadowColor = '#c9a6ff'; g.shadowBlur = 24;
@@ -50,6 +62,7 @@ function makeBeam() {
 }
 
 export class ControllerScene {
+  private resizeObserver: ResizeObserver;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(BASE_FOV,1,.1,80);
   private renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -79,6 +92,7 @@ export class ControllerScene {
   private halo: THREE.Sprite;
   private ringTex = ringTexture();
   private sequenceToken = 0;
+  private disposed = false;
   private lastInteraction = performance.now();
   private lastFrame = performance.now();
 
@@ -86,12 +100,12 @@ export class ControllerScene {
     const r = this.renderer;
     r.setPixelRatio(Math.min(devicePixelRatio, 2)); r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFShadowMap;
     r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = .72; r.outputColorSpace = THREE.SRGBColorSpace; r.setClearColor(0, 0);
-    r.domElement.setAttribute('aria-label','Interactive 3D PS5 controller. Drag to orbit. Select controls or use the controls list.');
+    r.domElement.setAttribute('aria-label','Interactive 3D PS5 controller. Drag to orbit. Select a control or use Tab to reach the keyboard controls.');
     this.host.append(r.domElement);
     Object.assign(this.labels.domElement.style, { position:'absolute', inset:'0', pointerEvents:'none' }); this.host.append(this.labels.domElement);
 
     const pmrem = new THREE.PMREMGenerator(r);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture; pmrem.dispose();
     this.scene.environmentIntensity = .55 * LUMA;
 
     this.camera.position.set(...manifest.views.front);
@@ -147,7 +161,7 @@ export class ControllerScene {
       if (id !== this.hovered) { this.hovered = id; r.domElement.style.cursor = id ? 'pointer' : 'grab'; }
     });
     r.domElement.addEventListener('pointerleave', () => this.hovered = undefined);
-    new ResizeObserver(() => this.resize()).observe(host); this.resize();
+    this.resizeObserver = new ResizeObserver(() => this.resize()); this.resizeObserver.observe(host); this.resize();
     r.setAnimationLoop(() => this.render());
   }
 
@@ -208,12 +222,13 @@ export class ControllerScene {
 
   async loadAsset(url:string) {
     const gltf = await new GLTFLoader().loadAsync(url);
+    if (this.disposed) { disposeTree(gltf.scene); return; }
     // Validate before replacing the placeholder. Artist transforms remain intact.
     const found = controls.map(c => ({ c, node: gltf.scene.getObjectByName(c.node) }));
     const missing = found.filter(x => !x.node).map(x => x.c.node);
     if (missing.length) throw Error(`Model is missing nodes: ${missing.join(', ')}`);
     this.polish(gltf.scene);
-    this.stage.remove(this.model); this.model = gltf.scene; this.stage.add(this.model);
+    this.stage.remove(this.model); disposeTree(this.model); this.model = gltf.scene; this.stage.add(this.model);
     this.nodes.clear(); this.rests.clear(); this.glowMaterials.clear(); this.labelNodes.clear(); this.motion = undefined;
     this.labels.domElement.replaceChildren();
     this.scene.updateMatrixWorld(true);
@@ -283,6 +298,18 @@ export class ControllerScene {
   }
   stopSequence() { this.sequenceToken++; }
 
+  /** Release GPU resources, observers and pending animations. The host element is emptied. */
+  dispose() {
+    if (this.disposed) return;
+    this.disposed = true; this.sequenceToken++;
+    this.motion?.resolve?.(); this.motion = undefined;
+    this.renderer.setAnimationLoop(null); this.resizeObserver.disconnect(); this.orbit.dispose();
+    disposeTree(this.scene);
+    this.scene.environment?.dispose(); this.ringTex.dispose();
+    this.composer.dispose(); this.bloom.dispose();
+    this.renderer.dispose(); this.host.replaceChildren();
+  }
+
   private resetMotion() {
     if (!this.motion) return;
     const { id, resolve } = this.motion; const node = this.nodes.get(id)!; const rest = this.rests.get(id)!;
@@ -317,7 +344,7 @@ export class ControllerScene {
   }
 
   private resize() {
-    const w = this.host.clientWidth, h = this.host.clientHeight;
+    const w = Math.max(1, this.host.clientWidth), h = Math.max(1, this.host.clientHeight);
     this.renderer.setSize(w, h); this.composer?.setSize(w, h); this.labels.setSize(w, h);
     this.camera.aspect = w / h;
     // Below 5:4 keep the horizontal field fixed so narrow (phone) stages still fit the whole controller.

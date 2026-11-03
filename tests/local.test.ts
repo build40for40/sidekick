@@ -24,3 +24,18 @@ it('ignores worker messages whose request no longer exists',async()=> {
   worker.onmessage({data:{id:1,value:'late'}});worker.onmessage({data:{id:1,progress:{progress:80}}});
   await rejection;expect(progress).not.toHaveBeenCalled();
 });
+it('aborts an in-flight model setup and terminates all workers once', async () => {
+  const workers: any[] = [];
+  class PendingWorker {
+    onmessage: any; onerror: any; terminate = vi.fn();
+    constructor() { workers.push(this); }
+    postMessage() {}
+  }
+  vi.stubGlobal('Worker', PendingWorker);
+  const abort = new AbortController();
+  const loading = loadLocal(() => {}, abort.signal);
+  const rejected = expect(loading).rejects.toThrow('cancelled');
+  abort.abort(); await rejected;
+  expect(workers).toHaveLength(3);
+  workers.forEach(worker => expect(worker.terminate).toHaveBeenCalledOnce());
+});
