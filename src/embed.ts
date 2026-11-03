@@ -1,7 +1,7 @@
 import styles from './style.css?inline';
 import { ControllerScene } from './controller/scene';
-import { byId, controls, type View } from './controller/manifest';
-import { PhysicalInput } from './controller/gamepad';
+import { byId, controls, manifest, type View } from './controller/manifest';
+import { PhysicalInput, inputActive, type GamepadState } from './controller/gamepad';
 import { transitionLesson, type Lesson, type LessonKind, type InputSource } from './tutor/lesson';
 import { validateReply, replySteps, type TutorReply } from './tutor/schema';
 import { DemonstrationPlayer, playbackOptions, type PlaybackOptions } from './tutor/playback';
@@ -20,6 +20,8 @@ export interface SidekickOptions {
   playback?: PlaybackOptions;
   /** Select a local model/backend for latency versus quality comparisons. */
   performance?: VoicePerformanceOptions;
+  /** Live controller feedback is enabled by default. No connection UI is added. */
+  gamepad?: boolean;
 }
 export interface SidekickState {
   phase: Phase;
@@ -32,6 +34,7 @@ export interface SidekickState {
   game: string | null;
   jargon: { term: string; means: string } | null;
   destroyed: boolean;
+  gamepad: GamepadState;
 }
 export type SidekickEvent = VoiceEvent
   | { type: 'progress'; progress: Progress }
@@ -40,6 +43,7 @@ export type SidekickEvent = VoiceEvent
   | { type: 'lesson'; lesson: Lesson | null }
   | { type: 'view'; view: View }
   | { type: 'gamepad'; message: string }
+  | { type: 'gamepad-input'; state: GamepadState }
   | { type: 'destroyed' };
 export interface Sidekick {
   getState(): SidekickState;
@@ -80,7 +84,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   const root = ownedRoots.get(container) ?? container.attachShadow({ mode: 'open' });
   ownedRoots.set(container, root); activeMounts.add(container);
   root.innerHTML = `<style>${styles}</style><section class="sidekick" aria-label="Controller tutor">
-    <span class="asset-note">Temporary controller · text demo</span>
+    <p class="asset-note"><a class="credit" target="_blank" rel="noopener"></a><span class="demo-note"> · text demo</span><span class="pack-note" hidden><br>Game moves are from Samira's pack (web-sourced, not yet checked on a console).</span></p>
     <div class="scene"></div>
     <div class="record-area"><p class="notice" role="status" aria-live="polite" hidden></p>
     <p class="caption" aria-live="polite" hidden></p>
@@ -98,7 +102,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   const events = new EventTarget();
   const subscriptions = new Set<EventListener>();
   const abort = new AbortController();
-  let state: SidekickState = { phase: 'ready', mode: 'development', selectedControl: null, lesson: null, caption: '', error: null, progress: null, game: game === 'active' ? activeGame.game : game, jargon: null, destroyed: false };
+  let state: SidekickState = { phase: 'ready', mode: 'development', selectedControl: null, lesson: null, caption: '', error: null, progress: null, game: game === 'active' ? activeGame.game : game, jargon: null, destroyed: false, gamepad: { status: 'disabled', controller: null, controls: [] } };
   let captions = options.captions ?? false;
   let consentPrompt = false;
   let runtime: LocalRuntime | undefined;
@@ -115,7 +119,8 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     button.setAttribute('aria-pressed', String(phase === 'listening'));
     label.textContent = loading ? 'Loading…' : phase === 'listening' ? 'Finish' : phase === 'transcribing' ? 'Transcribing…' : phase === 'thinking' ? 'Thinking…' : phase === 'speaking' ? 'Interrupt' : consentPrompt ? 'Download local voice' : 'Record';
     button.setAttribute('aria-label', phase === 'listening' ? 'Finish recording' : loading ? 'Downloading local voice models' : consentPrompt ? 'Download local voice models' : state.mode === 'local' ? 'Start recording' : 'Set up local voice');
-    find('.asset-note').textContent = state.mode === 'local' ? 'Temporary controller' : 'Temporary controller · text demo';
+    find('.demo-note').hidden = state.mode === 'local';
+    find('.pack-note').hidden = !state.game;
     notice.textContent = state.error ?? (loading ? `${state.progress?.stage ?? 'Loading local voice'}${state.progress?.progress === undefined ? '' : ` · ${Math.round(state.progress.progress)}%`}` : consentPrompt ? 'Download local voice models to record. Downloads may be large and take several minutes. Audio stays on your device.' : phase === 'listening' ? 'Listening. Click again to finish.' : '');
     notice.hidden = !notice.textContent;
     caption.textContent = state.caption;
@@ -131,15 +136,24 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     if (!pending) voice.stop();
     player.stop();
     state.selectedControl = id;
-    scene.highlight(id); scene.animate(id, c.motion === 'trigger' ? 'squeeze' : 'press');
+    if (source === 'virtual') { scene.highlight(id); scene.animate(id, c.motion === 'trigger' ? 'squeeze' : 'press'); }
     state.lesson = transitionLesson(state.lesson, { type: 'input', controlId: id, source });
     state.caption = c.description;
-    applyLesson(); render(); emit({ type: 'selection', controlId: id, source });
+    if (source === 'virtual') applyLesson();
+    else { scene.showHints(state.lesson?.hints ?? true); emit({ type: 'lesson', lesson: state.lesson }); }
+    render(); emit({ type: 'selection', controlId: id, source });
   }
   let scene: ControllerScene;
   try {
     scene = new ControllerScene(find('.scene'), id => select(id, 'virtual'), view => emit({ type: 'view', view }));
   } catch (error) { root.replaceChildren(); activeMounts.delete(container); throw error; }
+  const credit = find<HTMLAnchorElement>('.credit');
+  credit.href = 'https://skfb.ly/opKOx'; credit.title = `3D model: ${manifest.credit}`; credit.textContent = 'DualSense model by AHarmlessPotato · CC BY 4.0';
+  if (manifest.asset) scene.loadAsset(manifest.asset).catch((error: unknown) => {
+    if (state.destroyed) return;
+    scene.showPlaceholder(); state.error = `The controller model could not load: ${error instanceof Error ? error.message : String(error)}`;
+    render(); emit({ type: 'error', message: state.error });
+  });
   const player = new DemonstrationPlayer((step,durationMs) => {
     scene.demonstrate(step,durationMs); state.selectedControl = step.controlId;
   }, () => scene.clearDemonstration(),options.playback);
@@ -160,7 +174,14 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     if (event.type === 'demonstration') player.start(event.steps,event.completedPasses);
     render(); emit(event);
   });
-  const physical = new PhysicalInput(id => select(id, 'physical'), message => emit({ type: 'gamepad', message }));
+  const physical = new PhysicalInput(id => select(id, 'physical'), message => emit({ type: 'gamepad', message }), snapshot => {
+    const wasActive = state.gamepad.controls.some(inputActive);
+    state.gamepad = structuredClone(snapshot);
+    if (state.destroyed) return;
+    if (!wasActive && snapshot.controls.some(inputActive)) player.stop();
+    scene.setPhysicalInput(snapshot.controls);
+    emit({ type: 'gamepad-input', state: snapshot });
+  });
   const api: Sidekick = {
     getState: () => structuredClone(state),
     getControls: () => structuredClone(controls),
@@ -227,7 +248,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
       state.jargon = null; state.caption = ''; state.lesson = null; applyLesson(); render();
     },
     setPlayback(settings) { assertLive(); player.configure(settings); },
-    enableGamepad(enabled) { assertLive(); physical.stop(); if (enabled) physical.start(); },
+    enableGamepad(enabled) { assertLive(); if (enabled) physical.start(); else physical.stop(); },
     destroy() {
       if (state.destroyed) return;
       state.destroyed = true; abort.abort(); player.stop(); voice.dispose(); runtime?.dispose(); physical.stop(); scene.dispose();
@@ -253,5 +274,6 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     control.onclick = () => api.selectControl(c.id); find('.control-access').append(control);
   }
   render();
+  if (options.gamepad !== false) physical.start();
   return api;
 }

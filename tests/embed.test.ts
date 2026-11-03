@@ -1,29 +1,66 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mock = vi.hoisted(() => ({
-  highlight: vi.fn(), animate: vi.fn(), view: vi.fn(), act: vi.fn(), demonstrate: vi.fn(), clearDemonstration: vi.fn(), showHints: vi.fn(), dispose: vi.fn(), loadAsset: vi.fn(),
+  highlight: vi.fn(), animate: vi.fn(), view: vi.fn(), act: vi.fn(), demonstrate: vi.fn(), clearDemonstration: vi.fn(), showHints: vi.fn(), dispose: vi.fn(), loadAsset: vi.fn(() => Promise.resolve()),
+  showPlaceholder: vi.fn(),
   capabilities: vi.fn(), loadLocal: vi.fn(), runtimeDispose: vi.fn(),
+  setPhysicalInput: vi.fn(),
 }));
 vi.mock('../src/controller/scene', () => ({ ControllerScene: class {
   highlight = mock.highlight; animate = mock.animate; view = mock.view; act = mock.act;
   showHints = mock.showHints; dispose = mock.dispose; loadAsset = mock.loadAsset;
-  demonstrate = mock.demonstrate; clearDemonstration = mock.clearDemonstration;
+  demonstrate = mock.demonstrate; clearDemonstration = mock.clearDemonstration; showPlaceholder = mock.showPlaceholder;
+  setPhysicalInput = mock.setPhysicalInput;
 } }));
 vi.mock('../src/voice/local', () => ({ capabilities: mock.capabilities, loadLocal: mock.loadLocal }));
-import { createSidekick, type Sidekick } from '../src/index';
+import { createSidekick, type Sidekick, type SidekickOptions } from '../src/index';
 const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
 let instances: Sidekick[] = [];
-function mount() {
+function mount(options: SidekickOptions = {}) {
   const element = document.createElement('div'); document.body.append(element);
-  const api = createSidekick(element); instances.push(api);
+  const api = createSidekick(element, options); instances.push(api);
   return { api, root: element.shadowRoot! };
 }
 beforeEach(() => { vi.clearAllMocks(); mock.capabilities.mockResolvedValue(null); });
-afterEach(() => { instances.forEach(api => api.destroy()); instances = []; document.body.replaceChildren(); vi.useRealTimers(); });
+afterEach(() => { instances.forEach(api => api.destroy()); instances = []; document.body.replaceChildren(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 describe('embedding boundary', () => {
+  it('streams live physical state without canned animation, camera movement or extra UI', () => {
+    const buttons = Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 }));
+    const pad = { index: 0, id: 'Test', mapping: 'standard', connected: true, buttons, axes: [0, 0, 0, 0] };
+    let frame: FrameRequestCallback | undefined;
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    vi.stubGlobal('navigator', { getGamepads: () => [pad] });
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frame = callback; return 1; });
+    const cancel = vi.fn(); vi.stubGlobal('cancelAnimationFrame', cancel);
+    const { api, root } = mount(); const events: any[] = []; api.on(event => events.push(event));
+    expect(api.getState().gamepad).toMatchObject({ status: 'connected', controller: { id: 'Test' } });
+    const count = root.querySelectorAll('*').length;
+    api.startExercise('click', 'left-stick');
+    mock.animate.mockClear(); mock.highlight.mockClear(); mock.view.mockClear();
+    pad.axes = [.7, -.4, 0, 0]; frame!(0);
+    expect(api.getState().lesson?.complete).toBe(false);
+    expect(mock.setPhysicalInput.mock.lastCall?.[0].find((c: any) => c.controlId === 'left-stick').axes[0]).toBeGreaterThan(0);
+    buttons[10] = { pressed: true, touched: true, value: 1 }; frame!(0);
+    expect(api.getState().lesson).toMatchObject({ complete: true, source: 'physical' });
+    expect(events.filter(event => event.type === 'selection')).toEqual([{ type: 'selection', controlId: 'left-stick', source: 'physical' }]);
+    expect(mock.animate).not.toHaveBeenCalled(); expect(mock.highlight).not.toHaveBeenCalled(); expect(mock.view).not.toHaveBeenCalled();
+    const snapshot = api.getState(); snapshot.gamepad.controls[0].value = .123;
+    expect(api.getState().gamepad.controls[0].value).toBe(0);
+    expect(root.querySelectorAll('*')).toHaveLength(count);
+    api.enableGamepad(false); expect(api.getState().gamepad.status).toBe('disabled');
+    expect(mock.setPhysicalInput).toHaveBeenLastCalledWith([]); expect(cancel).toHaveBeenCalled();
+    api.destroy(); expect(api.getState().gamepad.status).toBe('disabled');
+  });
+  it('allows opting out of polling at mount and enabling it later', () => {
+    const poll = vi.fn(() => []); vi.stubGlobal('navigator', { getGamepads: poll });
+    const { api } = mount({ gamepad: false });
+    expect(api.getState().gamepad.status).toBe('disabled'); expect(poll).not.toHaveBeenCalled();
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    api.enableGamepad(true); expect(poll).toHaveBeenCalledOnce(); expect(api.getState().gamepad.status).toBe('waiting');
+  });
   it('keeps game and playback settings in the API, validates full sequences and cancels their timers', () => {
     vi.useFakeTimers();
-    const { api,root } = mount();
+    const { api,root } = mount({ gamepad: false });
     expect(api.getState().game).toBeNull();
     api.setGame('overcooked2'); expect(api.getState().game).toBe('overcooked2');
     expect(() => api.setGame('unknown')).toThrow('Unknown game');
@@ -78,6 +115,14 @@ describe('embedding boundary', () => {
     expect(signal?.aborted).toBe(true); expect(root.childNodes).toHaveLength(0); expect(mock.dispose).toHaveBeenCalledOnce();
     api.destroy(); expect(mock.dispose).toHaveBeenCalledOnce();
     expect(() => api.ask('hello')).toThrow('destroyed');
+  });
+  it('credits the model and labels pack moves once a game is selected', () => {
+    const { api, root } = mount();
+    expect(mock.loadAsset).toHaveBeenCalledOnce();
+    const credit = root.querySelector<HTMLAnchorElement>('.credit')!;
+    expect(credit.textContent).toContain('AHarmlessPotato'); expect(credit.title).toContain('CC Attribution 4.0');
+    expect(root.querySelector('.pack-note')?.hasAttribute('hidden')).toBe(true);
+    api.setGame('fortnite'); expect(root.querySelector('.pack-note')?.hasAttribute('hidden')).toBe(false);
   });
   it('disposes loaded runtime resources on unmount', async () => {
     mock.loadLocal.mockResolvedValue({ adapters: { tutor: { interrupt: vi.fn() } }, dispose: mock.runtimeDispose, getGame: () => null, setGame: vi.fn() });
