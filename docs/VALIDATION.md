@@ -47,7 +47,7 @@ This is one observed turn, not a benchmark, percentile, target or acoustic measu
 ## Remaining limitations
 
 - Real microphone permission UI, captured speech transcription, real silence/noise and end-to-end microphone-to-audio latency need manual testing on target desktop Chrome hardware.
-- Physical device presses/disconnection and unknown hardware mappings have logic tests but no connected-device verification. Stick axes are present in the manifest but are not polled yet; physical exercises use button presses including stick clicks.
+- Physical device presses/disconnection and unknown hardware mappings have logic tests but no connected-device verification. Live feedback now polls stick axes, button holds/releases and analog trigger values; physical exercises still require button press edges, including separate stick clicks.
 - Blender assets are pending. GLB import has a validated node contract but no supplied asset test. Procedural local movements are implemented; artist animation clips and multi-node highlight targets are future integration work.
 - Reduced-motion paths are implemented but need a full assistive-technology and OS preference check. Pointer hit areas and rear-view geometry should be checked again after asset integration.
 - Model output is untrusted. JSON validation prevents arbitrary actions but does not guarantee accurate or appropriate natural language. Evaluate all cases on each model before shipping.
@@ -63,3 +63,11 @@ Automated checks cover both games' gold contracts, controller-only context, game
 A desktop in-app Chromium browser rendered the revised temporary PS5 controller and all 19 labels. This is a rendering smoke check only. The new pack prompt, constrained schema, multi-step narration, microphone path and answer quality have **not** been exercised with real models in this revision. The earlier Qwen/Kokoro observations above used the previous controller-only prompt. Current target is Chrome on a modern laptop. iPhone/Safari and Android/Chrome compatibility tests are deferred at the user's request.
 
 Overcooked chop/throw and dash mappings remain disputed in the source pack; no physical verification was performed and no verification flags were upgraded. Artist GLB transforms, holding/double-press appearance, reduced motion and real audio synchronization still need manual checks with the final asset and models. The existing large runtime/WASM bundle warning remains.
+
+## Live controller input revision — 3 November 2026
+
+Live Gamepad API input is enabled by default, with a mount option and public method to disable it. The existing controller renders simultaneous button holds/releases, analog trigger travel and both sticks with a radial dead zone. Hardware feedback uses original local model transforms, takes priority over tutorial motion, retains highlights in reduced-motion mode and does not move the camera. Host code receives typed state/change events; no UI elements were added.
+
+Automated checks exercise baseline/press-edge semantics, simultaneous controls, analog values, independent stick clicks, drift filtering, unsupported mappings, stable device selection, disconnect/reconnect, missing/blocked APIs, hidden-page suspension, disabling, cleanup, API snapshots and transform restoration. Scene tests use real Three.js objects with a mocked GPU renderer; they check simultaneous movement, tutorial priority, existing active labels, reduced motion and release. These checks do not verify actual Bluetooth transport or browser hardware mapping.
+
+Manual check still required: pair the target controller with the MacBook, focus the page in desktop Chrome and press a controller button. Verify button holds/releases, simultaneous inputs, gradual trigger travel, both sticks and clicks, neutral drift, disconnect/reconnect, tab background/resume, and reduced motion. Repeat with USB to distinguish Bluetooth-specific problems. Safari, reserved system buttons, final GLB movement and cross-origin iframe policy behaviour remain unverified.

@@ -4,5 +4,6 @@ export type { TutorReply, TutorStep, KnowledgeReply, ControllerReply } from './t
 export type { PlaybackOptions, PlaybackSpeed } from './tutor/playback';
 export type { GameSelection } from './tutor/knowledge';
 export type { Control, View } from './controller/manifest';
+export type { GamepadState, ControlInput } from './controller/gamepad';
 export type { Lesson, LessonKind, InputSource } from './tutor/lesson';
 export type { Phase, Progress, Timings } from './voice/types';

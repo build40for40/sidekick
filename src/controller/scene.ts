@@ -5,7 +5,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { manifest, controls, byId, type View } from './manifest';
 import { replySteps, type TutorReply, type TutorStep } from '../tutor/schema';
-interface Rest { position: THREE.Vector3; rotation: THREE.Euler }
+import { applyInputMotion, type Rest } from './input-motion';
+import { inputActive, type ControlInput } from './gamepad';
 export class ControllerScene {
   private resizeObserver: ResizeObserver;
   private scene = new THREE.Scene();
@@ -23,6 +24,7 @@ export class ControllerScene {
   private reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private selected?: string;
   private hints = true;
+  private physical: ControlInput[] = [];
   constructor(private host: HTMLElement, private select: (id:string)=>void, private onView: (view:View)=>void = ()=>{}) {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio,2)); this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap; this.renderer.setClearColor(0,0);
@@ -97,13 +99,23 @@ export class ControllerScene {
     found.forEach(({c,node})=>this.register(c.id,node!));
   }
   view(view:View) { this.onView(view); const position=new THREE.Vector3(...manifest.views[view]); if(this.reduced) this.camera.position.copy(position); else this.targetCamera=position; }
-  highlight(id?:string) {
+  highlight(id?:string, moveCamera = true) {
     this.selected=id;
-    for(const [key,lines] of this.outlines) lines.forEach(l=>l.visible=this.hints && key===id);
-    for(const [key,label] of this.labelNodes) label.classList.toggle('active',this.hints && key===id);
-    if(id) this.view(byId.get(id)!.view);
+    this.updateHighlights();
+    if(id && moveCamera) this.view(byId.get(id)!.view);
   }
-  showHints(enabled:boolean) { this.hints=enabled; const selected=this.selected; this.highlight(selected); }
+  private updateHighlights() {
+    const active = new Set(this.physical.filter(inputActive).map(input => input.controlId));
+    const visible = (id: string) => active.size ? active.has(id) : this.hints && id === this.selected;
+    for(const [id,lines] of this.outlines) lines.forEach(line => line.visible = visible(id));
+    for(const [id,label] of this.labelNodes) label.classList.toggle('active', visible(id));
+  }
+  setPhysicalInput(inputs: ControlInput[]) {
+    this.physical = inputs;
+    if(inputs.some(inputActive)) this.targetCamera = undefined;
+    this.updateHighlights();
+  }
+  showHints(enabled:boolean) { this.hints=enabled; this.updateHighlights(); }
   act(reply:TutorReply) {
     const step=replySteps(reply)[0];
     if(step) this.demonstrate(step,1100);
@@ -131,7 +143,17 @@ export class ControllerScene {
   private resize() { const w=Math.max(1,this.host.clientWidth),h=Math.max(1,this.host.clientHeight); this.renderer.setSize(w,h); this.labels.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); }
   private render() {
     if(this.targetCamera) { this.camera.position.lerp(this.targetCamera,.06); if(this.camera.position.distanceTo(this.targetCamera)<.01) this.targetCamera=undefined; }
-    if(this.animation) {
+    for(const [id,node] of this.nodes) {
+      const rest=this.rests.get(id)!; node.position.copy(rest.position); node.rotation.copy(rest.rotation);
+    }
+    const live = this.physical.some(inputActive);
+    if(live) {
+      for(const input of this.physical) {
+        const node=this.nodes.get(input.controlId), rest=this.rests.get(input.controlId), control=byId.get(input.controlId);
+        if(node && rest && control) applyInputMotion(node,rest,control,input,this.reduced);
+      }
+    }
+    if(this.animation && !live) {
       const {id,start,action,duration,hold,times=1,direction}=this.animation; const t=(performance.now()-start)/duration;
       if(t>=1) this.resetMotion(); else {
         const node=this.nodes.get(id)!, rest=this.rests.get(id)!;

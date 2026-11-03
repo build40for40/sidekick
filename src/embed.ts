@@ -1,7 +1,7 @@
 import styles from './style.css?inline';
 import { ControllerScene } from './controller/scene';
 import { byId, controls, type View } from './controller/manifest';
-import { PhysicalInput } from './controller/gamepad';
+import { PhysicalInput, inputActive, type GamepadState } from './controller/gamepad';
 import { transitionLesson, type Lesson, type LessonKind, type InputSource } from './tutor/lesson';
 import { validateReply, replySteps, type TutorReply } from './tutor/schema';
 import { DemonstrationPlayer, playbackOptions, type PlaybackOptions } from './tutor/playback';
@@ -17,6 +17,8 @@ export interface SidekickOptions {
   /** No game is selected by default. 'active' explicitly selects the pack configuration. */
   game?: GameSelection;
   playback?: PlaybackOptions;
+  /** Live controller feedback is enabled by default. No connection UI is added. */
+  gamepad?: boolean;
 }
 export interface SidekickState {
   phase: Phase;
@@ -29,6 +31,7 @@ export interface SidekickState {
   game: string | null;
   jargon: { term: string; means: string } | null;
   destroyed: boolean;
+  gamepad: GamepadState;
 }
 export type SidekickEvent = VoiceEvent
   | { type: 'progress'; progress: Progress }
@@ -37,6 +40,7 @@ export type SidekickEvent = VoiceEvent
   | { type: 'lesson'; lesson: Lesson | null }
   | { type: 'view'; view: View }
   | { type: 'gamepad'; message: string }
+  | { type: 'gamepad-input'; state: GamepadState }
   | { type: 'destroyed' };
 export interface Sidekick {
   getState(): SidekickState;
@@ -94,7 +98,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   const events = new EventTarget();
   const subscriptions = new Set<EventListener>();
   const abort = new AbortController();
-  let state: SidekickState = { phase: 'ready', mode: 'development', selectedControl: null, lesson: null, caption: '', error: null, progress: null, game: game === 'active' ? activeGame.game : game, jargon: null, destroyed: false };
+  let state: SidekickState = { phase: 'ready', mode: 'development', selectedControl: null, lesson: null, caption: '', error: null, progress: null, game: game === 'active' ? activeGame.game : game, jargon: null, destroyed: false, gamepad: { status: 'disabled', controller: null, controls: [] } };
   let captions = options.captions ?? false;
   let consentPrompt = false;
   let runtime: LocalRuntime | undefined;
@@ -127,10 +131,12 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     if (!pending) voice.stop();
     player.stop();
     state.selectedControl = id;
-    scene.highlight(id); scene.animate(id, c.motion === 'trigger' ? 'squeeze' : 'press');
+    if (source === 'virtual') { scene.highlight(id); scene.animate(id, c.motion === 'trigger' ? 'squeeze' : 'press'); }
     state.lesson = transitionLesson(state.lesson, { type: 'input', controlId: id, source });
     state.caption = c.description;
-    applyLesson(); render(); emit({ type: 'selection', controlId: id, source });
+    if (source === 'virtual') applyLesson();
+    else { scene.showHints(state.lesson?.hints ?? true); emit({ type: 'lesson', lesson: state.lesson }); }
+    render(); emit({ type: 'selection', controlId: id, source });
   }
   let scene: ControllerScene;
   try {
@@ -156,7 +162,14 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     if (event.type === 'demonstration') player.start(event.steps,event.completedPasses);
     render(); emit(event);
   });
-  const physical = new PhysicalInput(id => select(id, 'physical'), message => emit({ type: 'gamepad', message }));
+  const physical = new PhysicalInput(id => select(id, 'physical'), message => emit({ type: 'gamepad', message }), snapshot => {
+    const wasActive = state.gamepad.controls.some(inputActive);
+    state.gamepad = structuredClone(snapshot);
+    if (state.destroyed) return;
+    if (!wasActive && snapshot.controls.some(inputActive)) player.stop();
+    scene.setPhysicalInput(snapshot.controls);
+    emit({ type: 'gamepad-input', state: snapshot });
+  });
   const api: Sidekick = {
     getState: () => structuredClone(state),
     getControls: () => structuredClone(controls),
@@ -223,7 +236,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
       state.jargon = null; state.caption = ''; state.lesson = null; applyLesson(); render();
     },
     setPlayback(settings) { assertLive(); player.configure(settings); },
-    enableGamepad(enabled) { assertLive(); physical.stop(); if (enabled) physical.start(); },
+    enableGamepad(enabled) { assertLive(); if (enabled) physical.start(); else physical.stop(); },
     destroy() {
       if (state.destroyed) return;
       state.destroyed = true; abort.abort(); player.stop(); voice.dispose(); runtime?.dispose(); physical.stop(); scene.dispose();
@@ -249,5 +262,6 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     control.onclick = () => api.selectControl(c.id); find('.control-access').append(control);
   }
   render();
+  if (options.gamepad !== false) physical.start();
   return api;
 }
