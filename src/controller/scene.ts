@@ -19,6 +19,9 @@ interface Ripple { sprite: THREE.Sprite; start: number }
 const ACCENT = new THREE.Color('#a970ff');
 const ACCENT_HOT = new THREE.Color('#e3ccff');
 const ease = (t: number) => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+// Overall stage brightness. Scales lights, glow and bloom only; polish() keeps the clearcoat gloss.
+const LUMA = .5;
+const BASE_FOV = 32;
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 function radialTexture(stops: [number, string][]) {
@@ -48,7 +51,7 @@ function makeBeam() {
 
 export class ControllerScene {
   private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(32,1,.1,80);
+  private camera = new THREE.PerspectiveCamera(BASE_FOV,1,.1,80);
   private renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
   private composer: EffectComposer;
   private bloom: UnrealBloomPass;
@@ -89,7 +92,7 @@ export class ControllerScene {
 
     const pmrem = new THREE.PMREMGenerator(r);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
-    this.scene.environmentIntensity = .55;
+    this.scene.environmentIntensity = .55 * LUMA;
 
     this.camera.position.set(...manifest.views.front);
     this.orbit = new OrbitControls(this.camera, r.domElement);
@@ -101,8 +104,8 @@ export class ControllerScene {
     this.key.position.set(-3, 8, 5); this.key.castShadow = true; this.key.shadow.mapSize.set(2048, 2048);
     Object.assign(this.key.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5 }); this.key.shadow.radius = 6; this.key.shadow.bias = -.0004;
     this.scene.add(this.key);
-    const rimViolet = new THREE.DirectionalLight(0xa970ff, 2.4); rimViolet.position.set(-6, 2, -5); this.scene.add(rimViolet);
-    const rimCyan = new THREE.DirectionalLight(0x5ce1ff, 1.6); rimCyan.position.set(6, 1.5, -4); this.scene.add(rimCyan);
+    const rimViolet = new THREE.DirectionalLight(0xa970ff, 2.4 * LUMA); rimViolet.position.set(-6, 2, -5); this.scene.add(rimViolet);
+    const rimCyan = new THREE.DirectionalLight(0x5ce1ff, 1.6 * LUMA); rimCyan.position.set(6, 1.5, -4); this.scene.add(rimCyan);
     this.spot.position.set(0, 9, 4); this.spot.castShadow = true; this.spot.shadow.mapSize.set(1024, 1024); this.spot.shadow.bias = -.0004;
     this.scene.add(this.spot, this.spot.target, this.beam);
 
@@ -122,7 +125,7 @@ export class ControllerScene {
 
     this.composer = new EffectComposer(r);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .6, .45, 2.4);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .6 * LUMA, .45, 2.4 * LUMA);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 
@@ -316,7 +319,11 @@ export class ControllerScene {
   private resize() {
     const w = this.host.clientWidth, h = this.host.clientHeight;
     this.renderer.setSize(w, h); this.composer?.setSize(w, h); this.labels.setSize(w, h);
-    this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
+    this.camera.aspect = w / h;
+    // Below 5:4 keep the horizontal field fixed so narrow (phone) stages still fit the whole controller.
+    const minAspect = 1.25, tanHalf = Math.tan(THREE.MathUtils.degToRad(BASE_FOV / 2));
+    this.camera.fov = this.camera.aspect >= minAspect ? BASE_FOV : THREE.MathUtils.radToDeg(2 * Math.atan(tanHalf * minAspect / this.camera.aspect));
+    this.camera.updateProjectionMatrix();
   }
 
   private render() {
@@ -336,10 +343,10 @@ export class ControllerScene {
     // Lighting crossfade: the stage dims and the spotlight finds the selected control.
     const wantFocus = this.selected && this.hints ? 1 : 0;
     this.focus += (wantFocus - this.focus) * (1 - Math.pow(.004, dt));
-    this.scene.environmentIntensity = THREE.MathUtils.lerp(.55, .16, this.focus);
-    this.hemi.intensity = THREE.MathUtils.lerp(.5, .1, this.focus);
-    this.key.intensity = THREE.MathUtils.lerp(1.8, .35, this.focus);
-    this.spot.intensity = 95 * this.focus;
+    this.scene.environmentIntensity = THREE.MathUtils.lerp(.55, .16, this.focus) * LUMA;
+    this.hemi.intensity = THREE.MathUtils.lerp(.5, .1, this.focus) * LUMA;
+    this.key.intensity = THREE.MathUtils.lerp(1.8, .35, this.focus) * LUMA;
+    this.spot.intensity = 95 * this.focus * LUMA;
     const beamMat = this.beam.material as THREE.ShaderMaterial;
     if (this.selected && this.nodes.has(this.selected)) {
       const at = this.worldOf(this.selected);
@@ -352,17 +359,17 @@ export class ControllerScene {
     const len = this.spot.position.distanceTo(this.spot.target.position);
     this.beam.position.copy(this.spot.position); this.beam.lookAt(this.spot.target.position);
     this.beam.scale.set(len * .12, len * .12, len);
-    beamMat.uniforms.opacity.value = this.focus * (this.reduced ? .6 : .55 + .1 * Math.sin(time * 2));
+    beamMat.uniforms.opacity.value = this.focus * (this.reduced ? .6 : .55 + .1 * Math.sin(time * 2)) * LUMA;
 
     // Glow: pulse on the selected control, a flash at the bottom of each press, a hint on hover.
     const pulse = this.reduced ? .7 : .55 + .45 * Math.sin(time * 4);
     for (const [id, mats] of this.glowMaterials) {
       const isSel = this.hints && id === this.selected, isHover = id === this.hovered;
       const intensity = isSel ? 3 + 2.5 * pulse + (this.motion?.id === id ? 7 * pressed : 0) : isHover ? .8 : 0;
-      for (const mat of mats) { mat.emissive.copy(this.motion?.id === id && pressed > .9 ? ACCENT_HOT : ACCENT); mat.emissiveIntensity = intensity; }
+      for (const mat of mats) { mat.emissive.copy(this.motion?.id === id && pressed > .9 ? ACCENT_HOT : ACCENT); mat.emissiveIntensity = intensity * LUMA; }
     }
     const haloMat = this.halo.material as THREE.SpriteMaterial;
-    haloMat.opacity = this.focus * (.55 + .25 * pulse + .4 * pressed);
+    haloMat.opacity = this.focus * (.55 + .25 * pulse + .4 * pressed) * LUMA;
     const s = .85 + .15 * pulse + .35 * pressed; this.halo.scale.set(s, s, s);
 
     for (const r of [...this.ripples]) {

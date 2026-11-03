@@ -40,4 +40,4 @@
 #move-list button.playing{background:linear-gradient(135deg,#a970ff,#7b4dff);border-color:transparent;color:#fff;box-shadow:0 6px 20px -6px rgba(169,112,255,.9)}
 .explorer button:focus-visible{outline-color:#c9a6ff}
 .credit{font-size:9px;line-height:1.6;color:#a0a693;margin:-12px 0 24px}
-@media(max-width:700px){#scene{height:360px}.steps{left:10px;bottom:10px}.moves{padding:4px 14px 14px}}
+@media(max-width:700px){#scene{height:360px}.steps{left:10px;bottom:10px;padding:9px 10px 8px;width:auto;max-width:calc(100% - 20px)}.steps-title{margin-bottom:5px}.steps li:not(.active){display:none}.moves{padding:4px 14px 14px}}
