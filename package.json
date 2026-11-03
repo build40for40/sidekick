@@ -7,7 +7,9 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build && tsc -p tsconfig.lib.json",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:hosting": "npm run build && node scripts/prepare-cloudflare.mjs",
+    "deploy": "npm run build:hosting && env -u CLOUDFLARE_API_KEY -u CLOUDFLARE_EMAIL -u CLOUDFLARE_API_TOKEN wrangler deploy --profile 40for40"
   },
   "dependencies": {
     "@huggingface/transformers": "4.3.2",
@@ -20,7 +22,8 @@
     "happy-dom": "21.0.4",
     "typescript": "5.9.3",
     "vite": "8.3.5",
-    "vitest": "5.1.0"
+    "vitest": "5.1.0",
+    "wrangler": "4.157.0"
   },
   "overrides": {
     "sharp": "0.35.5"

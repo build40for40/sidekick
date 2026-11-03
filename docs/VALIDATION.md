@@ -4,7 +4,7 @@ Initial scaffold, 3 November 2026. This record separates automated fixture check
 
 ## Automated
 
-- 35 tests pass: response validation, unsupported control/action rejection, lesson transitions, virtual versus physical completion, hint removal, unknown gamepad mappings, phase transitions, cancellation during generation and synthesis, stale worker messages, microphone-denial recovery, late microphone permission cleanup, download failure cleanup, unsupported WebGPU, 12 deterministic evaluation cases, plus embedding API validation, style/mount isolation, consent, initialization deduplication, aborted downloads, cleanup and remounting.
+- 39 tests pass: response validation, unsupported control/action rejection, lesson transitions, virtual versus physical completion, hint removal, unknown gamepad mappings, phase transitions, cancellation during generation and synthesis, stale worker messages, microphone-denial recovery, late microphone permission cleanup, download failure cleanup, unsupported WebGPU, 12 deterministic evaluation cases, plus embedding API validation, style/mount isolation, consent, initialization deduplication, aborted downloads, cleanup and remounting. Hosting checks cover mount redirects, compressed WASM responses, canonical asset redirects and isolation/microphone headers.
 - TypeScript strict checking and Vite production build pass.
 - npm audit reports zero known vulnerabilities with the lockfile and Sharp override.
 - Production bundles include lazy model runtimes and large WASM files. Vite emits a large-chunk warning. Model runtime size and memory remain optimisation work.
@@ -22,6 +22,12 @@ The first real Qwen generation selected a non-none action without a control ID; 
 The UI is now a minimal Shadow DOM component with a Record button and a public ESM API. The production build, generated TypeScript declarations, and import of the built public entry without a browser DOM pass. Relative worker/chunk paths were inspected for same-origin subdirectory hosting. Embedding tests exercise the API with mocked rendering/models; they are not a real-browser integration test.
 
 The existing preview was reloaded, but browser-control tooling then failed to inspect it. Native browser fallback was also unavailable. The revised minimal view, keyboard focus controls, actual host-site mounting, and real voice in that view have therefore not been visually/browser verified in this pass. Earlier model/voice measurements below apply to the original scaffold and are not new measurements of the embed revision.
+
+## Production hosting check, 3 November 2026
+
+Deployed the `sidekick` Cloudflare Worker at `https://build40for40.com/sidekick/`. The bare mount path redirects to the trailing-slash URL. Live HTTP checks confirmed the page's isolation and microphone headers, missing-asset 404s, and that the main domain still returns its existing page. The served JavaScript entry/chunks/workers and both decoded WASM runtimes matched the local build byte for byte. The larger WASM runtime is hosted compressed to fit the static asset upload limit.
+
+The production page was opened in embedded Chromium on macOS. The temporary 3D controller, labels and Record control rendered. Clicking Record displayed the explicit local-model download explanation and download control. No models were downloaded and no microphone permission was requested in this check. Real voice on this production deployment remains unverified.
 
 ## Timing
 
@@ -45,5 +51,5 @@ This is one observed turn, not a benchmark, percentile, target or acoustic measu
 - Blender assets are pending. GLB import has a validated node contract but no supplied asset test. Procedural local movements are implemented; artist animation clips and multi-node highlight targets are future integration work.
 - Reduced-motion paths are implemented but need a full assistive-technology and OS preference check. Pointer hit areas and rear-view geometry should be checked again after asset integration.
 - Model output is untrusted. JSON validation prevents arbitrary actions but does not guarantee accurate or appropriate natural language. Evaluate all cases on each model before shipping.
-- No continuous listening, camera, account, persistence, backend, training, fine-tuning, deployment, full offline shell or mobile voice support.
+- No continuous listening, camera, account, persistence, inference backend, training, fine-tuning, full offline shell or mobile voice support.
 - Model cache eviction, GPU loss, worker hangs and very low-memory devices need broader testing. ASR/TTS compute already in flight is allowed to finish in its worker; turn tokens suppress stale output, while WebLLM is interrupted explicitly.

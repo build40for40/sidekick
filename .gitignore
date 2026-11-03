@@ -5,6 +5,7 @@ dist/
 .dev.vars*
 !.dev.vars.example
 .wrangler/
+.cloudflare/
 .DS_Store
 coverage/
 *.blend1
