@@ -16,27 +16,37 @@ npm run preview
 
 Use a current Node 22 LTS release (22.12 or newer) or Node 24 LTS. Local verification also used Node 26. Open the local Vite URL. No API keys or environment variables are needed. CI runs tests and production builds.
 
-## Try it
+## Embedded unit
 
-- Ask “Where is the right bumper?” or “What does clicking the stick mean?” with the text box or suggestion buttons. The development tutor is deliberately small and deterministic.
-- Click controls or drag to orbit. Front, shoulders and back views reveal hard-to-see controls. Open **Explore all controls** for keyboard selection.
-- Try **Find a control**, **Click a stick** or **Try it yourself**. Turn off hints to remove the selected outline. A virtual selection is labelled virtual recognition, never a confirmed physical press.
-- Click **Enable local voice** to explicitly download the models, with progress and retry on error. After loading, click Talk once to start recording and again to finish. Recording is capped at 30 seconds. First microphone permission follows this user gesture.
-- Starting a new recording or text question interrupts playback and invalidates the preceding turn. Stop cancels a turn; Repeat synthesizes the last valid reply. Captions are optional. No speech autoplays on page load.
-- Optionally enable physical input. Standard Gamepad API mappings use edge-detected button presses. Unknown mappings fail closed. A reconnect establishes a new baseline; a held button is not counted as a new press. The controller may need a button press before Chrome exposes it.
+The default UI contains the controller and a Record button. First-use consent, loading and errors appear only when needed. Captions are opt-in. The host site supplies text input, lessons, navigation and any other surrounding UI through the public API.
+
+```ts
+import { createSidekick } from './src/index';
+
+const tutor = createSidekick(document.querySelector<HTMLElement>('#tutor')!);
+tutor.on(event => {
+  if (event.type === 'reply') console.log(event.reply.spoken);
+});
+tutor.highlight('right-bumper');
+// From host UI: tutor.ask('Where is the right bumper?');
+// On unmount: tutor.destroy();
+```
+
+Build output includes an ESM entry at `dist/sidekick.js`, declarations and worker/model-runtime assets. The demo exposes `window.sidekick` for development. See [the embedding API and integration example](docs/EMBEDDING.md) for setup consent, recording, exercises, events, styling, cleanup and hosting requirements.
 
 ## Requirements
 
-Initial target: desktop Chrome with WebGPU, a compatible GPU with sufficient free memory, WebAssembly, module workers, Web Audio and microphone access. Serve over HTTPS or localhost. Three.js currently renders with WebGL2; WebGPU is required by WebLLM. Other browsers/devices are not certified. The page remains responsive at 390px for text exploration, but mobile voice is outside the initial scope.
+Initial target: desktop Chrome with WebGPU, a compatible GPU with sufficient free memory, WebAssembly, module workers, Web Audio and microphone access. Serve over HTTPS or localhost. Three.js currently renders with WebGL2; WebGPU is required by WebLLM. Other browsers/devices are not certified. The component scales to the host container; mobile voice is outside the initial scope.
 
 Set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` when hosting, as in `vite.config.ts`. Serve JS, WASM and model assets with appropriate content types, CORS and caching. There is no server or production deployment included.
 
-The first download can be large and model initialization can take several minutes. Models are cached by the inference libraries where available. Cache eviction, browser updates and model changes can trigger downloads again. An unsupported device gets an explanation and can continue in text development mode. There is no silent remote speech fallback.
+The first download can be large and model initialization can take several minutes. Models are cached by the inference libraries where available. Cache eviction, browser updates and model changes can trigger downloads again. An unsupported device gets an explanation; the host can continue through the text-question API in development mode. There is no silent remote speech fallback.
 
 ## Architecture
 
 | Area | Location | Responsibility |
 | --- | --- | --- |
+| Embedding API | `src/index.ts`, `src/embed.ts` | Isolated component, typed public functions, events and lifecycle |
 | Controller facts | `src/controller/manifest.ts` | Stable IDs, names, labels, aliases, descriptions, targets, views, movement, gamepad mappings |
 | Rendering | `src/controller/scene.ts` | Temporary controller, GLB loading, raycast selection, outlines, labels, local motion and camera |
 | Lessons | `src/tutor/lesson.ts` | Explicit exercise state, hint state and input-confirmed completion |

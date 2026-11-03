@@ -31,8 +31,9 @@ export class VoiceOrchestrator {
     this.stream?.getTracks().forEach(t => t.stop()); this.stream = undefined;
     clearTimeout(this.timer); this.state('ready');
   }
+  dispose() { this.stop(); void this.audio?.close(); this.audio = undefined; }
   async startRecording() {
-    if (!this.adapters) { this.fail(Error('Download local voice models first. Text exploration is available below.')); return; }
+    if (!this.adapters) { this.fail(Error('Download local voice models first. The host can also provide a text question.')); return; }
     this.stop(); this.unlockAudio();
     const turn = this.gate.next();
     this.state('listening');
@@ -69,7 +70,7 @@ export class VoiceOrchestrator {
       };
       recorder.start(); this.timer = setTimeout(() => this.finishRecording(), 30000);
     } catch (error) {
-      if (this.gate.current(turn)) { this.stop(); this.fail(error instanceof DOMException && error.name === 'NotAllowedError' ? Error('Microphone permission was denied. Allow it in Chrome’s site settings and try again, or type below.') : error); }
+      if (this.gate.current(turn)) { this.stop(); this.fail(error instanceof DOMException && error.name === 'NotAllowedError' ? Error('Microphone permission was denied. Allow it in Chrome’s site settings and try again, or use the host’s text input.') : error); }
     }
   }
   finishRecording() {

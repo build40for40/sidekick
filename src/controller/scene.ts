@@ -7,6 +7,7 @@ import { manifest, controls, byId, type View } from './manifest';
 import type { TutorReply } from '../tutor/schema';
 interface Rest { position: THREE.Vector3; rotation: THREE.Euler }
 export class ControllerScene {
+  private resizeObserver: ResizeObserver;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(36,1,.1,80);
   private renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -25,7 +26,7 @@ export class ControllerScene {
   constructor(private host: HTMLElement, private select: (id:string)=>void, private onView: (view:View)=>void = ()=>{}) {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio,2)); this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap; this.renderer.setClearColor(0,0);
-    this.renderer.domElement.setAttribute('aria-label','Interactive 3D reference controller. Drag to orbit. Select controls or use the controls list.');
+    this.renderer.domElement.setAttribute('aria-label','Interactive 3D reference controller. Drag to orbit. Select a control or use Tab to reach the keyboard controls.');
     this.host.append(this.renderer.domElement);
     Object.assign(this.labels.domElement.style, { position:'absolute', inset:'0', pointerEvents:'none' }); this.host.append(this.labels.domElement);
     this.camera.position.set(...manifest.views.front);
@@ -48,7 +49,7 @@ export class ControllerScene {
       while (node && !node.userData.controlId) node = node.parent;
       if (node?.userData.controlId) this.select(node.userData.controlId);
     });
-    new ResizeObserver(()=>this.resize()).observe(host); this.resize();
+    this.resizeObserver = new ResizeObserver(()=>this.resize()); this.resizeObserver.observe(host); this.resize();
     this.renderer.setAnimationLoop(()=>this.render());
   }
   private material(color: string, roughness=.6) { return new THREE.MeshStandardMaterial({ color, roughness, metalness:.13 }); }
@@ -115,7 +116,17 @@ export class ControllerScene {
     const node=this.nodes.get(this.animation.id)!; const rest=this.rests.get(this.animation.id)!;
     node.position.copy(rest.position); node.rotation.copy(rest.rotation); this.animation=undefined;
   }
-  private resize() { const w=this.host.clientWidth,h=this.host.clientHeight; this.renderer.setSize(w,h); this.labels.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); }
+  dispose() {
+    this.renderer.setAnimationLoop(null); this.resizeObserver.disconnect(); this.orbit.dispose();
+    this.scene.traverse(object => {
+      const mesh = object as THREE.Mesh;
+      mesh.geometry?.dispose();
+      if (mesh.material) for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) material.dispose();
+      if (object instanceof THREE.DirectionalLight) object.shadow.dispose();
+    });
+    this.renderer.dispose(); this.host.replaceChildren();
+  }
+  private resize() { const w=Math.max(1,this.host.clientWidth),h=Math.max(1,this.host.clientHeight); this.renderer.setSize(w,h); this.labels.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); }
   private render() {
     if(this.targetCamera) { this.camera.position.lerp(this.targetCamera,.06); if(this.camera.position.distanceTo(this.targetCamera)<.01) this.targetCamera=undefined; }
     if(this.animation) {

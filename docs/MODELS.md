@@ -1,6 +1,6 @@
 # Local model adapters
 
-All evaluation happens inside browser workers. No hosted inference endpoint, browser SpeechRecognition or browser speechSynthesis fallback is used. Only app assets, fonts, runtime WASM, model weights, tokenizers, voices and model libraries may be downloaded. Audio and transcripts are held in memory, not sent to a backend. The app has no analytics or server API. Providers still receive ordinary asset request metadata. Cache storage can be evicted by the browser; offline support is not guaranteed.
+All evaluation happens inside browser workers. No hosted inference endpoint, browser SpeechRecognition or browser speechSynthesis fallback is used. Only app assets, runtime WASM, model weights, tokenizers, voices and model libraries may be downloaded. Audio and transcripts are held in memory, not sent to a backend. The app has no analytics or server API. Providers still receive ordinary asset request metadata. Cache storage can be evicted by the browser; offline support is not guaranteed.
 
 ## Pinned dependencies and defaults
 
@@ -18,7 +18,7 @@ Whisper's original repository also includes its MIT licence; retain the respecti
 
 Qwen's exact default ID and the SmolLM2 alternative were confirmed against the installed `prebuiltAppConfig.model_list`. That config estimates Qwen's VRAM at 1629.75 MB; this is upstream metadata, not a device measurement or a guarantee. Allow additional memory for rendering and both audio models.
 
-The interface uses [DM Sans](https://github.com/google/fonts/tree/main/ofl/dmsans) and [Manrope](https://github.com/google/fonts/tree/main/ofl/manrope) from Google Fonts under the SIL Open Font License. The current scaffold fetches fonts as CSS assets; self-host them before offering a fully offline interface.
+The embedded interface uses system fonts and makes no external font requests.
 
 ## API references used
 
