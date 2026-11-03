@@ -1,6 +1,6 @@
 # Sidekick
 
-A welcoming, private game guide powered by a local LLM, built with vanilla TypeScript, Vite and Three.js. The intended experience is to ask questions such as “How do I jump in this game?” or “How do I do this action?” and receive guidance through game actions, sequences of actions and components of the game. The interactive 3D controller supports that guidance by showing the relevant inputs and how to use them. Local voice adapters use Whisper, WebLLM and Kokoro in workers.
+A welcoming, private game guide powered by a local LLM, built with vanilla TypeScript, Vite and Three.js. The intended experience is to ask questions such as “How do I jump in this game?” or “How do I do this action?” and receive guidance through game actions, sequences of actions and components of the game. The interactive 3D controller supports that guidance by showing the relevant inputs and how to use them. Local voice adapters use Whisper, WebLLM and Kokoro in workers. Hosts can explicitly select remote LLM generation through an AI SDK backend; recognition and synthesis remain local. See [remote inference setup](docs/REMOTE-INFERENCE.md).
 
 The tutor starts with PS5 controller explanations and no selected game. Local mode can load verified Overcooked! 2 or Fortnite knowledge, answer follow-up questions, and narrate multi-step demonstrations on the 3D controller. A game must be named in the question or selected by the host. Broader gameplay knowledge beyond the supplied pack is unavailable. Game moves are from Samira's pack (web-sourced, not yet checked on a console).
 
@@ -16,13 +16,13 @@ npm run build
 npm run preview
 ```
 
-Use a current Node 22 LTS release (22.12 or newer) or Node 24 LTS. Local verification also used Node 26. Open the local Vite URL. No API keys or environment variables are needed. CI runs tests and production builds.
+Use a current Node 22 LTS release (22.12 or newer) or Node 24 LTS. Local verification also used Node 26. Open the local Vite URL. Local mode needs no API keys or environment variables. Remote mode requires server-side provider configuration. CI runs tests and production builds.
 
 Live controller feedback is enabled by default. Pair a controller with macOS over Bluetooth (or connect by USB), focus the page, then press a controller button. Standard-mapped inputs drive simultaneous button holds, trigger travel and stick movement on the existing PS5 model. No voice setup is needed. See [live controller feedback](docs/EMBEDDING.md#live-controller-feedback) for the host API, mapping limitations and physical-device verification status.
 
 ## Embedded unit
 
-The default UI contains the controller and a Record button. An X appears during demonstrations; click it or press Escape to stop the animation and narration and ease back to the still front view. Loading, consent and errors appear only when needed. Captions are opt-in. The host site supplies text input, lessons, navigation and other surrounding UI through the public API.
+The default UI contains the controller, a Record button and a settings gear. Settings selects a local or configured remote tutor model and an optional game, including controller-only guidance. An X appears during demonstrations; click it or press Escape to stop the animation and narration and ease back to the still front view. A brief instruction summary appears above Record in muted text, independently of voice playback. Loading, consent and errors appear only when needed. Spoken captions remain opt-in. The host site supplies text input, lessons, navigation and other surrounding UI through the public API.
 
 Whisper speech recognition preloads on capable browsers when the component opens. Other hosts still require consent before the large Qwen/Kokoro downloads. The first-party demo opts into the full download automatically with `autoInitializeVoice: true` and shows progress; once ready, Record starts recording with one click. No microphone access or audio playback happens during setup. Hosts can disable the recognition prefetch with `prefetchWhisper: false`.
 
@@ -44,7 +44,7 @@ Build output includes an ESM entry at `dist/sidekick.js`, declarations and worke
 
 ## Requirements
 
-Current test target: Chrome on a modern laptop with WebGPU, a compatible GPU with sufficient free memory, WebAssembly, module workers, Web Audio and microphone access. Serve over HTTPS or localhost. Three.js renders with WebGL2; WebGPU is required by WebLLM. Phone compatibility testing (iPhone/Safari and Android/Chrome) is deferred. Other browsers/devices are not certified.
+Current test target: Chrome on a modern laptop with WebGPU, a compatible GPU with sufficient free memory, WebAssembly, module workers, Web Audio and microphone access. Serve over HTTPS or localhost. Three.js renders with WebGL2; WebGPU is required by WebLLM in local generation mode; remote generation can use local WASM audio without it. Phone compatibility testing (iPhone/Safari and Android/Chrome) is deferred. Other browsers/devices are not certified.
 
 Set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` when hosting, as in `vite.config.ts`. Serve JS, WASM and model assets with appropriate content types, CORS and caching. Production hosting is configured for Cloudflare at [build40for40.com/sidekick](https://build40for40.com/sidekick/). See [hosting setup and deployment](docs/HOSTING.md).
 
@@ -61,6 +61,7 @@ The first download can be large and model initialization can take several minute
 | Tutor boundary | `src/tutor/schema.ts` | Allowlisted JSON schema and independent runtime validation |
 | Development tutor | `src/tutor/development.ts` | Labelled deterministic fixture for scaffold testing |
 | Voice | `src/voice/` | Typed adapters, state machine, turn tokens, recording, sequential stage queue, playback and timings |
+| Remote generation | `src/voice/remote.ts`, `hosting/tutor.ts` | Explicit same-origin transport, AI SDK providers, server secrets, model allowlist and request limits |
 | Workers | `src/workers/` | ASR, generation and synthesis, away from the main UI thread |
 | Evaluation | `evaluation/cases.json` | Small model-independent set, including ambiguity and unsupported claims |
 

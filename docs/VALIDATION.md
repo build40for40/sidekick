@@ -84,3 +84,21 @@ The contextual X and Escape stop narration and visual loops, clear highlights, a
 In the desktop embedded Chromium browser, opening the local demo started Whisper and then Qwen/Kokoro loading without a click, showed progress, and reached the ready Record state without requesting the microphone. The loaded controller rendered at rest. Selecting Square showed the X; both Escape and a subsequent X click cleared the demonstration, hid the X and returned the controller to front. This is a startup/UI smoke check, not an end-to-end spoken-gameplay or performance benchmark. Phone/browser compatibility testing remains deferred per the current laptop-Chrome scope.
 
 After merging the newer voice-performance and opaque-controller-material changes, all 115 tests and the hosting build pass. Whisper prefetch now shares the same `AudioRuntime` and selected audio backend as full setup, preserving transferable PCM, busy-worker cancellation, model selection, grammar warmup and speech caching. The merged demo was reloaded in desktop Chromium: automatic startup again reached Record, and Escape again cleared an active Square demonstration. No microphone recording or phone compatibility test was performed.
+
+## Optional remote generation, 3 November 2026
+
+Remote generation adds automated transport, provider-adapter, request-control, model allowlist, validation and cancellation checks. Speech still runs on device. Real provider calls, provider/model-specific structured-output compatibility, and browser voice in remote mode remain unverified. The endpoint is disabled by default; no deployment or provider credentials were created. See [remote inference](REMOTE-INFERENCE.md).
+
+Verification for this change: all 138 tests passed, strict TypeScript/declaration generation and the demo/ESM/worker production build passed, and Wrangler dry-run packaged the Worker successfully (about 429 KiB gzip). A local workerd smoke check served `/sidekick/` with HTTP 200 and rejected the unconfigured tutor endpoint with the expected JSON HTTP 503. No live provider call or remote-mode browser voice check was performed.
+
+## Model and game settings, 3 November 2026
+
+All 148 tests and the strict TypeScript/demo/ESM/worker/declaration build pass. Settings checks cover model and game selection, host/UI synchronization, consent after switching, stale setup disposal, preserving a new pending setup, game changes during setup, catalog discovery and server-side credential filtering. In embedded Chromium the gear, native model/game selectors, local model switching and game labels were exercised without downloading speech models or accessing the microphone. The panel also rendered within a 390px-wide, 480px-high component. Real remote-provider calls and voice after switching models remain unverified.
+
+## Separate task summary, 3 November 2026
+
+The pack-attribution line was removed from the embedded view. Short display instructions now appear above Record with the former note typography. Local/remote generation schemas and the prompt request a separate summary; runtime validation bounds it to 160 characters. Older replies use a deterministic control checklist. All 154 tests and the production demo/ESM/worker/declaration build pass. Tests verify display placement with captions off, summary validation, narration separation, and retention after synthesis failure. Embedded Chromium rendered a host-supplied summary above Record with a selected game and no attribution line. This browser check used fixture data without downloading models or playing audio; real model wording with the revised schema remains unverified.
+
+## Anthropic Sonnet 5.5 enabled, 3 November 2026
+
+All 155 tests and the full production build passed. Deployed Worker version `fe56637f-4542-4652-8f96-2f31b5346111` with only `anthropic:claude-sonnet-5-5` in the remote allowlist. The live model catalog returned that sole remote option. A real request through the production tutor route for “Where is L3?” returned HTTP 200, a separate on-screen summary, and a press step on `left-stick` with no game action. This first request took about 12.7 seconds (not a general latency benchmark). Browser microphone, local synthesis and voice after selecting this model have not been reverified. No provider key was read back or stored in the repository.

@@ -30,3 +30,25 @@
 .control-access button { font: 12px system-ui, sans-serif; background: #eef1e7; border: 1px solid #d9dfd1; border-radius: 6px; padding: 9px; color: #344832; cursor: pointer; }
 @keyframes pulse { 50% { opacity: .4; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+.record-controls { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+.settings-toggle { display: grid; place-items: center; width: 44px; height: 44px; padding: 10px; border: 1px solid #ffffff30; border-radius: 50%; background: #21182f; color: #e7ddfa; cursor: pointer; }
+.settings-toggle svg { width: 24px; height: 24px; }
+.settings-toggle:hover, .settings-toggle[aria-expanded="true"] { background: #3a2850; border-color: #c9a6ff80; }
+.settings-panel { position: absolute; z-index: 6; bottom: 86px; left: 50%; transform: translateX(-50%); width: min(340px, calc(100% - 32px)); max-height: calc(100% - 102px); overflow: auto; padding: 18px; border: 1px solid #c9a6ff55; border-radius: 16px; background: #21182ff5; color: #eee6fb; box-shadow: 0 12px 44px #0007; }
+.settings-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.settings-heading h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.settings-close { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; font: 24px/1 system-ui, sans-serif; cursor: pointer; }
+.settings-close:hover { background: #ffffff15; }
+.settings-panel label { display: grid; gap: 7px; font-size: 12px; font-weight: 600; }
+.settings-panel select { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid #ffffff30; border-radius: 8px; background: #140f22; color: #eee6fb; font: 13px system-ui, sans-serif; text-overflow: ellipsis; }
+.settings-panel select:disabled { opacity: .55; }
+.settings-panel p { margin: 8px 0 16px; color: #c7bdd7; font-size: 11px; line-height: 1.5; }
+.settings-panel .settings-hint { margin-bottom: 0; }
+.settings-panel .catalog-status:empty { display: none; }
+.settings-toggle:focus-visible, .settings-panel select:focus-visible, .settings-close:focus-visible { outline: 3px solid #c9a6ff; outline-offset: 3px; }
+
+.sidekick:has(.settings-panel:not([hidden])) .record-area > .notice, .sidekick:has(.settings-panel:not([hidden])) .record-area > .caption { visibility: hidden; }
+
+/* The instruction summary uses the quiet typography of the former pack note. */
+.instruction-summary { max-width: 430px; margin: 0; color: inherit; font-size: 10px; line-height: 1.5; letter-spacing: .03em; opacity: .6; text-align: center; overflow-wrap: anywhere; pointer-events: auto; }
+.sidekick:has(.settings-panel:not([hidden])) .instruction-summary { visibility: hidden; }

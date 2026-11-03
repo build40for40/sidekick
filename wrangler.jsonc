@@ -4,6 +4,8 @@
   "account_id": "9b4d3e616e55585a0ae844f424717b43",
   "compatibility_date": "2026-11-03",
   "main": "hosting/worker.ts",
+  "vars": { "TUTOR_MODELS": "anthropic:claude-sonnet-5-5" },
+  "ratelimits": [{ "name": "TUTOR_RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }],
   "assets": {
     "directory": "./.cloudflare/assets",
     "binding": "ASSETS",

@@ -1,0 +1,8 @@
+# Local Wrangler configuration only. Copy to ignored .dev.vars and fill in one provider.
+TUTOR_MODELS="anthropic:claude-sonnet-5-5"
+ANTHROPIC_API_KEY=""
+# OPENAI_API_KEY=""
+# GOOGLE_GENERATIVE_AI_API_KEY=""
+# AI_GATEWAY_API_KEY=""
+# COMPATIBLE_BASE_URL="https://your-provider.example/v1"
+# COMPATIBLE_API_KEY=""

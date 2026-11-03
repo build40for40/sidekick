@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mock = vi.hoisted(() => ({
   highlight: vi.fn(), animate: vi.fn(), view: vi.fn(), act: vi.fn(), demonstrate: vi.fn(), clearDemonstration: vi.fn(), showHints: vi.fn(), dispose: vi.fn(), loadAsset: vi.fn(() => Promise.resolve()),
   showPlaceholder: vi.fn(), clear: vi.fn(),
-  capabilities: vi.fn(), loadLocal: vi.fn(), runtimeDispose: vi.fn(),
+  capabilities: vi.fn(), loadLocal: vi.fn(), loadRemote: vi.fn(), runtimeDispose: vi.fn(),
   prefetchWhisper: vi.fn(), whisperDispose: vi.fn(),
   setPhysicalInput: vi.fn(),
 }));
@@ -14,7 +14,7 @@ vi.mock('../src/controller/scene', () => ({ ControllerScene: class {
   setPhysicalInput = mock.setPhysicalInput;
   clear = mock.clear;
 } }));
-vi.mock('../src/voice/local', () => ({ capabilities: mock.capabilities, loadLocal: mock.loadLocal, prefetchWhisper: mock.prefetchWhisper }));
+vi.mock('../src/voice/local', () => ({ capabilities: mock.capabilities, loadLocal: mock.loadLocal, loadRemote: mock.loadRemote, prefetchWhisper: mock.prefetchWhisper }));
 import { createSidekick, type Sidekick, type SidekickOptions } from '../src/index';
 const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
 let instances: Sidekick[] = [];
@@ -23,7 +23,7 @@ function mount(options: SidekickOptions = {}) {
   const api = createSidekick(element, { prefetchWhisper: false, ...options }); instances.push(api);
   return { api, root: element.shadowRoot! };
 }
-beforeEach(() => { vi.clearAllMocks(); mock.loadLocal.mockReset(); mock.prefetchWhisper.mockReset(); mock.capabilities.mockResolvedValue(null); mock.prefetchWhisper.mockReturnValue({ ready:Promise.resolve(),transcribe:vi.fn(),dispose:mock.whisperDispose }); });
+beforeEach(() => { vi.clearAllMocks(); mock.loadLocal.mockReset(); mock.loadRemote.mockReset(); mock.prefetchWhisper.mockReset(); mock.capabilities.mockResolvedValue(null); mock.prefetchWhisper.mockReturnValue({ ready:Promise.resolve(),transcribe:vi.fn(),dispose:mock.whisperDispose }); });
 afterEach(() => { instances.forEach(api => api.destroy()); instances = []; document.body.replaceChildren(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 describe('embedding boundary', () => {
   it('preloads only Whisper by default, shows progress, and keeps the consent step for large models', async () => {
@@ -185,7 +185,8 @@ describe('embedding boundary', () => {
     vi.advanceTimersByTime(1450);expect(mock.demonstrate).toHaveBeenLastCalledWith(steps[1],1100);
     expect(() => api.action({spoken:'Bad.',found:false,actionId:null,steps,jargon:null})).toThrow();
     api.setGame(null);expect(vi.getTimerCount()).toBe(0);expect(api.getState().game).toBeNull();
-    expect(root.querySelectorAll('select,input')).toHaveLength(0);
+    expect(root.querySelectorAll('.settings-panel select')).toHaveLength(2);
+    expect(root.querySelector<HTMLElement>('.settings-panel')!.hidden).toBe(true);
     api.action({spoken:'Show.',action:'highlight',controlId:'left-stick'});expect(vi.getTimerCount()).toBe(1);
     api.destroy();expect(vi.getTimerCount()).toBe(0);
   });
@@ -229,13 +230,14 @@ describe('embedding boundary', () => {
     api.destroy(); expect(mock.dispose).toHaveBeenCalledOnce();
     expect(() => api.ask('hello')).toThrow('destroyed');
   });
-  it('credits the model and labels pack moves once a game is selected', () => {
+  it('credits the model without showing the removed pack note', () => {
     const { api, root } = mount();
     expect(mock.loadAsset).toHaveBeenCalledOnce();
     const credit = root.querySelector<HTMLAnchorElement>('.credit')!;
     expect(credit.textContent).toContain('AHarmlessPotato'); expect(credit.title).toContain('CC Attribution 4.0');
-    expect(root.querySelector('.pack-note')?.hasAttribute('hidden')).toBe(true);
-    api.setGame('fortnite'); expect(root.querySelector('.pack-note')?.hasAttribute('hidden')).toBe(false);
+    api.setGame('fortnite');
+    expect(root.querySelector('.pack-note')).toBeNull();
+    expect(root.textContent).not.toContain('Samira');
   });
   it('disposes loaded runtime resources on unmount', async () => {
     mock.loadLocal.mockResolvedValue({ adapters: { tutor: { interrupt: vi.fn() } }, dispose: mock.runtimeDispose, getGame: () => null, setGame: vi.fn() });
@@ -250,4 +252,141 @@ it('allows remount after destruction but rejects a second live instance', () => 
   expect(() => createSidekick(element)).toThrow('unused mount');
   first.destroy(); const second = createSidekick(element); instances.push(second);
   expect(second.getState().destroyed).toBe(false);
+});
+it('requires consent for remote mode, reports it explicitly, and uses remote capabilities and setup', async () => {
+  const {api,root}=mount({inference:{mode:'remote',endpoint:'/sidekick/api/tutor',model:'google:test'}});
+  expect(root.querySelector('.notice')?.textContent).toContain('Transcripts');
+  expect(() => api.ask('Help')).toThrow('consent');
+  root.querySelector<HTMLButtonElement>('.record')!.click();
+  expect(mock.loadRemote).not.toHaveBeenCalled();
+  mock.loadRemote.mockResolvedValue({ adapters:{tutor:{interrupt:vi.fn()}},dispose:mock.runtimeDispose,getGame:()=>null });
+  await api.initializeVoice({consent:true});
+  expect(mock.capabilities).toHaveBeenCalledWith('remote');
+  expect(mock.loadRemote).toHaveBeenCalledOnce();expect(mock.loadLocal).not.toHaveBeenCalled();
+  expect(api.getState().mode).toBe('remote');
+  expect(root.querySelector('.demo-note')?.hasAttribute('hidden')).toBe(true);
+  expect(root.querySelector('.notice')?.textContent).toContain('google:test');
+  api.destroy();expect(mock.runtimeDispose).toHaveBeenCalledOnce();
+});
+it('opens accessible settings beside Record and closes with Escape, focus return and outside click', () => {
+  const {root}=mount();
+  const gear=root.querySelector<HTMLButtonElement>('.settings-toggle')!;
+  const panel=root.querySelector<HTMLElement>('.settings-panel')!;
+  expect(gear.parentElement).toBe(root.querySelector('.record')!.parentElement);
+  expect(panel.hidden).toBe(true);gear.click();
+  expect(panel.hidden).toBe(false);expect(gear.getAttribute('aria-expanded')).toBe('true');
+  expect(root.activeElement).toBe(root.querySelector('.model-select'));
+  const escape=new KeyboardEvent('keydown',{key:'Escape',bubbles:true,composed:true,cancelable:true});
+  root.querySelector('.model-select')!.dispatchEvent(escape);
+  expect(escape.defaultPrevented).toBe(true);expect(panel.hidden).toBe(true);expect(root.activeElement).toBe(gear);
+  gear.click();document.body.dispatchEvent(new Event('pointerdown',{bubbles:true,composed:true}));
+  expect(panel.hidden).toBe(true);expect(gear.getAttribute('aria-expanded')).toBe('false');
+});
+it('selects supported games or no game and stays in sync with the host API', () => {
+  const {api,root}=mount({game:'active'});
+  const games=root.querySelector<HTMLSelectElement>('.game-select')!;
+  expect(Array.from(games.options).map(option=>option.textContent)).toEqual(['No game · controller only','Overcooked! 2','Fortnite']);
+  expect(games.value).toBe('overcooked2');
+  api.action({spoken:'Press.',action:'press',controlId:'cross'});
+  games.value='fortnite';games.dispatchEvent(new Event('change'));
+  expect(api.getState()).toMatchObject({game:'fortnite',demonstrating:false});
+  games.value='';games.dispatchEvent(new Event('change'));expect(api.getState().game).toBeNull();
+  api.setGame('overcooked2');expect(games.value).toBe('overcooked2');
+});
+it('switches models through Settings, disposes the previous runtime, preserves game and requires new consent',async()=>{
+  const interrupt=vi.fn();mock.loadLocal.mockResolvedValue({adapters:{tutor:{interrupt}},dispose:mock.runtimeDispose,getGame:()=> 'fortnite',setGame:vi.fn()});
+  const {api,root}=mount({game:'fortnite',remoteModels:[{mode:'remote',model:'google:test',endpoint:'/sidekick/api/tutor'}]});
+  await api.initializeVoice({consent:true});
+  const model=root.querySelector<HTMLSelectElement>('.model-select')!;
+  const remote=root.querySelector<HTMLOptionElement>('optgroup[label="Remote"] option')!;
+  model.value=remote.value;model.dispatchEvent(new Event('change'));
+  expect(mock.runtimeDispose).toHaveBeenCalledOnce();expect(interrupt).toHaveBeenCalled();
+  expect(api.getState()).toMatchObject({mode:'development',model:{mode:'remote',model:'google:test'},game:'fortnite'});
+  expect(mock.loadRemote).not.toHaveBeenCalled();expect(()=>api.ask('Help')).toThrow('consent');
+  expect(root.querySelector('.record-label')?.textContent).toBe('Enable remote tutor');
+  mock.loadRemote.mockResolvedValue({adapters:{tutor:{interrupt:vi.fn()}},dispose:vi.fn(),getGame:()=> 'fortnite'});
+  root.querySelector<HTMLButtonElement>('.record')!.click();await flush();
+  expect(mock.loadRemote).toHaveBeenCalledOnce();expect(api.getState().mode).toBe('remote');
+  api.setModel({mode:'local',model:'fast'});
+  expect(model.value).toBe('local:fast');
+  await api.initializeVoice({consent:true});
+  expect(mock.loadLocal.mock.lastCall?.[3]).toMatchObject({tutor:'fast'});
+});
+it('cancels stale setup on model changes without allowing it to overwrite or clear new setup',async()=>{
+  let oldFinish!:(runtime:any)=>void,newFinish!:(runtime:any)=>void;
+  const oldDispose=vi.fn(),newDispose=vi.fn();let oldSignal!:AbortSignal;
+  mock.loadLocal.mockImplementation((_progress,signal)=>{oldSignal=signal;return new Promise(resolve=>{oldFinish=resolve;});});
+  mock.loadRemote.mockImplementation(()=>new Promise(resolve=>{newFinish=resolve;}));
+  const {api,root}=mount();const old=api.initializeVoice({consent:true});await flush();
+  const oldRejected=expect(old).rejects.toThrow('cancelled');
+  api.setModel({mode:'remote',model:'google:test',endpoint:'/sidekick/api/tutor'});
+  expect(oldSignal.aborted).toBe(true);
+  const current=api.initializeVoice({consent:true});await flush();
+  expect(root.querySelector<HTMLSelectElement>('.game-select')!.disabled).toBe(false);
+  oldFinish({dispose:oldDispose});await oldRejected;
+  expect(oldDispose).toHaveBeenCalledOnce();expect(api.initializeVoice({consent:true})).toBe(current);
+  newFinish({adapters:{tutor:{interrupt:vi.fn()}},dispose:newDispose,getGame:()=>null});await current;
+  expect(api.getState()).toMatchObject({mode:'remote',model:{model:'google:test'},error:null});
+  expect(root.querySelector<HTMLSelectElement>('.game-select')!.disabled).toBe(false);
+  api.destroy();expect(newDispose).toHaveBeenCalledOnce();
+});
+it('discovers only configured remote choices on opening Settings and never switches automatically',async()=>{
+  const fetch=vi.fn(async()=>Response.json({models:[{mode:'remote',model:'anthropic:test',endpoint:'/sidekick/api/tutor'}]}));
+  vi.stubGlobal('fetch',fetch);
+  const {api,root}=mount({modelCatalog:'/sidekick/api/models'});
+  expect(fetch).not.toHaveBeenCalled();root.querySelector<HTMLButtonElement>('.settings-toggle')!.click();await flush();
+  expect(fetch).toHaveBeenCalledOnce();
+  expect(root.querySelector('optgroup[label="Remote"]')?.textContent).toContain('anthropic:test');
+  expect(api.getState().model).toEqual({mode:'local',model:'quality'});expect(mock.loadRemote).not.toHaveBeenCalled();
+  root.querySelector<HTMLButtonElement>('.settings-close')!.click();root.querySelector<HTMLButtonElement>('.settings-toggle')!.click();
+  expect(fetch).toHaveBeenCalledOnce();
+});
+it('rejects invalid models and keeps settings snapshots independent',()=>{
+  const {api}=mount();expect(()=>api.setModel({mode:'local',model:'missing'} as any)).toThrow('Unknown local');
+  expect(()=>api.setModel({mode:'remote',model:'test:model',endpoint:'https://other.example/tutor'})).toThrow('same-origin');
+  const snapshot=api.getState();snapshot.model={mode:'local',model:'fast'};expect(api.getState().model).toEqual({mode:'local',model:'quality'});
+});
+it('applies a game selected during voice setup to the loaded runtime without cancelling downloads',async()=>{
+  let finish!:(runtime:any)=>void;let signal!:AbortSignal;
+  mock.loadLocal.mockImplementation((_progress,s)=>{signal=s;return new Promise(resolve=>{finish=resolve;});});
+  const {api,root}=mount();const pending=api.initializeVoice({consent:true});await flush();
+  api.setGame('fortnite');expect(signal.aborted).toBe(false);expect(api.getState().phase).toBe('downloading');
+  let game:string|null=null;const setGame=vi.fn((selected:string|null)=>{game=selected;});
+  finish({adapters:{tutor:{interrupt:vi.fn()}},setGame,getGame:()=>game,dispose:vi.fn()});await pending;
+  expect(setGame).toHaveBeenCalledWith('fortnite');expect(api.getState().game).toBe('fortnite');
+  expect(root.querySelector<HTMLSelectElement>('.game-select')!.value).toBe('fortnite');
+});
+it('reports a failed catalog, retries on reopen and aborts discovery on destruction',async()=>{
+  let signal!:AbortSignal;let finish!:(response:Response)=>void;
+  const fetch=vi.fn().mockResolvedValueOnce(new Response('unavailable',{status:503})).mockImplementation((_url,options)=>{signal=options.signal;return new Promise(resolve=>{finish=resolve;});});
+  vi.stubGlobal('fetch',fetch);
+  const {api,root}=mount({modelCatalog:'/sidekick/api/models'});
+  const gear=root.querySelector<HTMLButtonElement>('.settings-toggle')!;
+  gear.click();await flush();expect(root.querySelector('.catalog-status')?.textContent).toContain('Reopen Settings');
+  gear.click();gear.click();await flush();expect(fetch).toHaveBeenCalledTimes(2);
+  api.destroy();expect(signal.aborted).toBe(true);
+  finish(Response.json({models:[]}));await flush();expect(root.childNodes).toHaveLength(0);
+});
+it('shows a separate instruction summary directly above Record with captions off',()=>{
+  const {api,root}=mount();
+  const reply={spoken:'Here is the full spoken explanation.',summary:'Click the left stick straight down (L3).',action:'press' as const,controlId:'left-stick'};
+  api.action(reply);
+  const summary=root.querySelector<HTMLElement>('.instruction-summary')!;
+  expect(summary.hidden).toBe(false);expect(summary.textContent).toBe(reply.summary);
+  expect(summary.nextElementSibling).toBe(root.querySelector('.record-controls'));
+  expect(root.querySelector<HTMLElement>('.caption')!.hidden).toBe(true);
+  expect(api.getState().summary).toBe(reply.summary);
+  api.stop();expect(summary.textContent).toBe(reply.summary);
+  api.setGame('fortnite');expect(summary.hidden).toBe(true);
+});
+it('keeps the visual task summary independent of narration when synthesis fails',async()=>{
+  vi.stubGlobal('AudioContext',class{resume=async()=>{};close=async()=>{};});
+  const reply={spoken:'Let me show you how to chop it.',summary:'At a chopping board: Cross to put it down, then Square to chop.',found:true,actionId:'chop',jargon:null,steps:[{action:'press' as const,controlId:'cross',say:'Put it down first.'},{action:'press' as const,controlId:'square',say:'Now chop it.'}]};
+  const synthesize=vi.fn(async()=>{throw Error('Voice unavailable');});
+  mock.loadLocal.mockResolvedValue({adapters:{tutor:{reply:async()=>reply,interrupt:vi.fn()},synthesis:{synthesize}},dispose:vi.fn(),getGame:()=> 'overcooked2'});
+  const {api,root}=mount();await api.initializeVoice({consent:true});api.ask('How do I chop?');await flush();
+  expect(api.getState()).toMatchObject({phase:'error',summary:reply.summary,caption:reply.spoken});
+  expect(root.querySelector('.instruction-summary')?.textContent).toBe(reply.summary);
+  expect(synthesize).toHaveBeenCalledWith(reply.spoken);expect(synthesize).not.toHaveBeenCalledWith(reply.summary);
+  api.setModel({mode:'local',model:'fast'});expect(api.getState().summary).toBe('');
 });

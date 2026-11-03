@@ -67,3 +67,9 @@ it('aborts an in-flight model setup and terminates all workers once', async () =
   expect(workers).toHaveLength(3);
   workers.forEach(worker => expect(worker.terminate).toHaveBeenCalledOnce());
 });
+it('remote generation allows local WASM audio without requiring WebGPU', async () => {
+  vi.stubGlobal('isSecureContext',true);vi.stubGlobal('MediaRecorder',class{});
+  vi.stubGlobal('navigator',{mediaDevices:{getUserMedia(){}}});
+  expect(await capabilities('remote')).toBeNull();
+  expect(await capabilities()).toContain('WebGPU');
+});

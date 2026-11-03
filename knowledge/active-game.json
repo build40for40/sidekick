@@ -2,5 +2,12 @@
   "note": "The one switch. Change `game` to swap the whole tutor to another game folder under games/. Each game folder has controls.json, glossary.json and tests.csv.",
   "game": "overcooked2",
   "controller": "ps5",
-  "available_games": ["overcooked2", "fortnite"]
+  "available_games": [
+    "overcooked2",
+    "fortnite"
+  ],
+  "game_names": {
+    "overcooked2": "Overcooked! 2",
+    "fortnite": "Fortnite"
+  }
 }
