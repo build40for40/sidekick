@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Controller material investigation</title>
+<style>
+  body { margin: 0; background: #171125; color: white; font: 14px system-ui; }
+  nav { padding: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  button { padding: 8px; }
+  #stage { height: 540px; position: relative; }
+  .model-label { display: none; }
+  #status { padding: 12px; }
+  #grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  figure { margin: 0; }
+  img { width: 100%; }
+  figcaption { padding: 8px; }
+</style>
+<nav aria-label="Diagnostic controls">
+  <button id="front">Front</button><button id="side">Side</button>
+  <button id="rear">Rear</button><button id="underside">Underside</button>
+  <button id="oblique">Oblique</button><button id="toggle">Use legacy export</button>
+  <button id="compare">Compare current view</button><button id="sweep">Sweep 32 angles</button>
+  <button id="reset">Reset</button>
+</nav>
+<div id="status" role="status">Diagnostic only — loading the bundled GLB.</div>
+<div id="stage"></div><div id="grid"></div>
+<script type="module">
+  import { ControllerScene } from '../src/controller/scene.ts';
+  import { manifest } from '../src/controller/manifest.ts';
+
+  // Development diagnostic: intentionally inspects TypeScript-private scene fields.
+  // This page is not a public embed API or a production build entry.
+  const status = document.querySelector('#status');
+  const stage = document.querySelector('#stage');
+  const grid = document.querySelector('#grid');
+  const scene = new ControllerScene(stage, () => {});
+  window.addEventListener('pagehide', () => { releaseImages(); scene.dispose(); });
+  const imageUrls = [];
+  function releaseImages() { imageUrls.splice(0).forEach(url => URL.revokeObjectURL(url)); }
+  try { await scene.loadAsset(manifest.asset); }
+  catch (error) { status.textContent = `GLB load failed: ${error.message}`; throw error; }
+  scene.orbit.enableDamping = false;
+
+  // These are the actual translucent cap meshes in this asset, determined by UV/alpha inspection.
+  // Re-audit after an asset replacement. Never apply this name list to an arbitrary GLB.
+  const clearCaps = new Set([
+    'dpad-left_mesh_7', 'dpad-down_mesh_10', 'dpad-up_mesh_14', 'dpad-right_mesh_16',
+    'square_mesh_40', 'cross_mesh_41', 'triangle_mesh_44', 'circle_mesh_45',
+  ]);
+  const originals = new Map();
+  scene.model.traverse(object => {
+    if (!object.material) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    // Reconstruct the pre-fix export for comparison; the asset now ships corrected.
+    for (const material of materials) originals.set(material, {
+      transparent: material.name === '1011' || material.name === '1001-solid' || material.transparent,
+      depthWrite: material.name === '1011' || material.name === '1001-solid' ? false : material.depthWrite,
+      solid: !clearCaps.has(object.name),
+    });
+  });
+  let fixed = true;
+  let angle = 'front';
+  let comparing = false;
+  function mode(fix) {
+    fixed = fix;
+    for (const [material, original] of originals) {
+      material.transparent = fix && original.solid ? false : original.transparent;
+      material.depthWrite = fix && original.solid ? true : original.depthWrite;
+      material.needsUpdate = true;
+    }
+    document.querySelector('#toggle').textContent = fix ? 'Use legacy export' : 'Use corrected asset';
+    status.textContent = `Diagnostic only — ${angle}; ${fix ? 'corrected asset; solid parts opaque; clear caps preserved' : 'reconstructed legacy BLEND export'}.`;
+  }
+  function view(position, label) {
+    angle = label;
+    scene.targetCamera = undefined;
+    scene.camera.position.set(...position);
+    scene.orbit.target.set(0, 0, 0);
+    scene.orbit.update();
+    mode(fixed);
+  }
+  const positions = {
+    front: [0, 6.2, 5.6], side: [7, 2, 0], rear: [0, -1.2, -7.4],
+    underside: [0, -7, 3], oblique: [5, 3, -5],
+  };
+  for (const [name, position] of Object.entries(positions)) {
+    document.querySelector(`#${name}`).onclick = () => view(position, name);
+  }
+  document.querySelector('#toggle').onclick = () => mode(!fixed);
+  document.querySelector('#reset').onclick = () => location.reload();
+
+  async function capturePair() {
+    for (const fix of [false, true]) {
+      mode(fix);
+      scene.render();
+      // Read pixels in the render task, before the non-preserved WebGL buffer is cleared.
+      const blob = await new Promise(resolve => scene.renderer.domElement.toBlob(resolve));
+      if (!blob) throw Error('Unable to capture the WebGL canvas');
+      const url = URL.createObjectURL(blob);
+      imageUrls.push(url);
+      const figure = document.createElement('figure');
+      const caption = document.createElement('figcaption');
+      caption.textContent = `${fix ? 'Corrected asset' : 'Legacy export (reconstructed)'} — ${angle}`;
+      const image = document.createElement('img');
+      image.src = url; image.alt = caption.textContent;
+      figure.append(caption, image); grid.append(figure);
+    }
+  }
+  async function compare(sweep) {
+    if (comparing) return;
+    comparing = true;
+    document.querySelectorAll('nav button:not(#reset)').forEach(button => button.disabled = true);
+    const wasFixed = fixed;
+    const position = scene.camera.position.clone();
+    const target = scene.orbit.target.clone();
+    const previousAngle = angle;
+    scene.renderer.setAnimationLoop(null);
+    grid.replaceChildren(); releaseImages();
+    try {
+      if (sweep) {
+        for (const elevation of [55, 15, -15, -55]) {
+          for (const yaw of [0, 45, 90, 135, 180, 225, 270, 315]) {
+            const e = elevation * Math.PI / 180, a = yaw * Math.PI / 180;
+            view([8 * Math.cos(e) * Math.sin(a), 8 * Math.sin(e), 8 * Math.cos(e) * Math.cos(a)],
+              `yaw ${yaw}°, elevation ${elevation}°`);
+            await capturePair();
+          }
+        }
+      } else await capturePair();
+      stage.hidden = true;
+      status.textContent = `Diagnostic only — ${sweep ? '32 camera angles' : previousAngle}; reconstructed legacy export beside corrected asset. Clear caps preserved. Reset to orbit again.`;
+    } catch (error) {
+      status.textContent = `Comparison failed: ${error.message}. Reset to try again.`;
+    } finally {
+      scene.camera.position.copy(position); scene.orbit.target.copy(target);
+      angle = previousAngle; fixed = wasFixed;
+      comparing = false;
+    }
+  }
+  document.querySelector('#compare').onclick = () => compare(false);
+  document.querySelector('#sweep').onclick = () => compare(true);
+  view(positions.front, 'front');
+</script>
+</html>
