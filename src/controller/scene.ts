@@ -8,12 +8,12 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { manifest, controls, byId, sequenceById, type View, type Sequence, type SequenceStep } from './manifest';
-import type { TutorReply } from '../tutor/schema';
+import { manifest, controls, byId, type View } from './manifest';
+import { replySteps, type TutorReply, type TutorStep } from '../tutor/schema';
 
 interface Rest { position: THREE.Vector3; quaternion: THREE.Quaternion }
 type MotionKind = 'press' | 'hold' | 'squeeze' | 'tilt';
-interface Motion { id: string; kind: MotionKind; start: number; duration: number; flashed: boolean; resolve?: () => void }
+interface Motion { id: string; kind: MotionKind; start: number; duration: number; times: number; direction?: TutorStep['direction']; flashed: number; resolve?: () => void }
 interface Ripple { sprite: THREE.Sprite; start: number }
 
 const ACCENT = new THREE.Color('#a970ff');
@@ -24,7 +24,6 @@ const LUMA = .5;
 const BASE_FOV = 32;
 /** After the app turns the camera to show a control, return to the flat front view this long after everything stops. */
 const SETTLE_MS = 3500;
-const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 function radialTexture(stops: [number, string][]) {
   const c = document.createElement('canvas'); c.width = c.height = 256;
@@ -93,8 +92,6 @@ export class ControllerScene {
   private beam = makeBeam();
   private halo: THREE.Sprite;
   private ringTex = ringTexture();
-  private sequenceToken = 0;
-  private playingToken = -1;
   private autoFramed = false; // the app, not the user, moved the camera
   private disposed = false;
   private lastInteraction = performance.now();
@@ -201,7 +198,7 @@ export class ControllerScene {
     });
     this.glowMaterials.set(id, glows);
     const label = document.createElement('span'); label.className = 'model-label';
-    label.innerHTML = `<b>${c.glyph}</b><em>${c.label === c.glyph ? '' : c.label}</em><i class="hold-bar"></i>`;
+    label.innerHTML = `<b>${c.glyph}</b><em>${c.label === c.glyph ? '' : c.label}</em><i class="hold-bar"></i>`; label.title = c.aliases.join(', ');
     const marker = new CSS2DObject(label); node.add(marker); this.labelNodes.set(id, label);
     const box = new THREE.Box3().setFromObject(node); const centre = box.getCenter(new THREE.Vector3());
     marker.position.copy(node.worldToLocal(centre.add(new THREE.Vector3(0, .28, 0))));
@@ -268,46 +265,33 @@ export class ControllerScene {
     if (id && this.nodes.has(id)) this.frame(id);
   }
   showHints(enabled:boolean) { this.hints = enabled; this.highlight(this.selected); }
-  clear() { this.sequenceToken++; this.selected = undefined; this.highlight(undefined); this.view('front'); }
+  clear() { this.clearDemonstration(); this.view('front'); }
 
   act(reply:TutorReply) {
-    if (reply.action === 'none') return;
-    if (reply.action === 'sequence') { const s = sequenceById.get(reply.sequenceId!); if (s) void this.playSequence(s); return; }
-    this.sequenceToken++;
-    this.highlight(reply.controlId);
-    if (reply.action !== 'highlight') void this.animate(reply.controlId!, reply.action);
+    const step = replySteps(reply)[0];
+    if (step) this.demonstrate(step, 1100);
   }
+  /** Show one tutor step: spotlight and frame the control, then press, hold, squeeze or tilt it. */
+  demonstrate(step:TutorStep, durationMs:number) {
+    this.highlight(step.controlId); this.resetMotion();
+    if (step.action !== 'highlight') void this.animate(step.controlId, step.hold ? 'hold' : step.action, { durationMs, times: step.times, direction: step.direction });
+  }
+  clearDemonstration() { this.resetMotion(); this.highlight(undefined); }
 
-  animate(id:string, action: string = 'press', duration?: number) {
+  animate(id:string, action: string = 'press', options: { durationMs?: number; times?: number; direction?: TutorStep['direction'] } = {}) {
     this.resetMotion();
-    const c = byId.get(id)!;
+    const c = byId.get(id)!; const times = options.times ?? 1;
     const kind: MotionKind = action === 'squeeze' || (action === 'press' && c.motion === 'trigger') ? 'squeeze' : action === 'tilt' ? 'tilt' : action === 'hold' ? 'hold' : 'press';
-    const ms = duration ?? (kind === 'hold' ? 1400 : kind === 'squeeze' ? 1300 : kind === 'tilt' ? 1400 : 900);
-    return new Promise<void>(resolve => { this.motion = { id, kind, start: performance.now(), duration: ms, flashed: false, resolve }; });
+    const natural = (kind === 'hold' ? 1400 : kind === 'squeeze' ? 1300 : kind === 'tilt' ? 1400 : 900) * times;
+    // A hold fills the step; other motions keep their natural pace unless the step is shorter.
+    const ms = options.durationMs === undefined ? natural : kind === 'hold' ? options.durationMs : Math.min(options.durationMs, natural);
+    return new Promise<void>(resolve => { this.motion = { id, kind, start: performance.now(), duration: ms, times, direction: options.direction, flashed: 0, resolve }; });
   }
-
-  /** Play a combo step by step: spotlight, camera, press, caption. */
-  async playSequence(sequence: Sequence, onStep: (index: number, step: SequenceStep) => void = () => {}) {
-    const token = ++this.sequenceToken; this.playingToken = token;
-    for (const [i, step] of sequence.steps.entries()) {
-      if (token !== this.sequenceToken) return false;
-      onStep(i, step);
-      this.highlight(step.control);
-      await wait(this.reduced ? 150 : 800);
-      if (token !== this.sequenceToken) return false;
-      await this.animate(step.control, step.action, step.ms);
-      await wait(this.reduced ? 200 : 380);
-    }
-    this.lastInteraction = performance.now();
-    if (this.playingToken === token) this.playingToken = -1;
-    return token === this.sequenceToken;
-  }
-  stopSequence() { this.sequenceToken++; }
 
   /** Release GPU resources, observers and pending animations. The host element is emptied. */
   dispose() {
     if (this.disposed) return;
-    this.disposed = true; this.sequenceToken++;
+    this.disposed = true;
     this.motion?.resolve?.(); this.motion = undefined;
     this.renderer.setAnimationLoop(null); this.resizeObserver.disconnect(); this.orbit.dispose();
     disposeTree(this.scene);
@@ -334,17 +318,20 @@ export class ControllerScene {
     const m = this.motion; if (!m) return 0;
     const t = Math.min(1, (now - m.start) / m.duration);
     const node = this.nodes.get(m.id)!, rest = this.rests.get(m.id)!, c = byId.get(m.id)!;
+    const cycle = Math.min(m.times - 1, Math.floor(t * m.times)), local = t >= 1 ? 1 : t * m.times - cycle;
     // Envelope: in fast, hold, out. A hold keeps the button down for most of the duration.
     const inEnd = m.kind === 'hold' ? .15 : .35, outStart = m.kind === 'hold' ? .85 : .6;
-    const amount = this.reduced ? (t < .7 ? 1 : 0) : t < inEnd ? ease(t / inEnd) : t < outStart ? 1 : 1 - ease((t - outStart) / (1 - outStart));
+    const amount = this.reduced ? (local < .7 ? 1 : 0) : local < inEnd ? ease(local / inEnd) : local < outStart ? 1 : 1 - ease((local - outStart) / (1 - outStart));
     node.position.copy(rest.position); node.quaternion.copy(rest.quaternion);
     const placeholder = node.userData.placeholder;
-    if (m.kind === 'tilt') node.rotateX(.32 * amount);
+    if (m.kind === 'tilt' && placeholder) node.rotateX(.32 * amount);
+    // In the GLB frame (+Z up, +Y forward) "up" tips the stick top towards the shoulders.
+    else if (m.kind === 'tilt') { const d = m.direction ?? 'up'; if (d === 'left' || d === 'right') node.rotateY((d === 'right' ? .32 : -.32) * amount); else node.rotateX((d === 'up' ? -.32 : .32) * amount); }
     else if (c.movement.rotation) node.rotateOnAxis(new THREE.Vector3(1,0,0), c.movement.range * amount);
     else if (placeholder) node.translateY(-.075 * amount);
     else { const axis = new THREE.Vector3(c.movement.axis === 'x' ? 1 : 0, c.movement.axis === 'y' ? 1 : 0, c.movement.axis === 'z' ? 1 : 0); node.translateOnAxis(axis, c.movement.range * amount); }
-    if (!m.flashed && amount > .97) { m.flashed = true; this.ripple(m.id); }
-    if (m.kind === 'hold' || m.kind === 'squeeze') this.labelNodes.get(m.id)?.style.setProperty('--hold', String(Math.min(1, t / outStart)));
+    if (m.flashed <= cycle && amount > .97) { m.flashed = cycle + 1; this.ripple(m.id); }
+    if (m.kind === 'hold' || m.kind === 'squeeze') this.labelNodes.get(m.id)?.style.setProperty('--hold', String(Math.min(1, local / outStart)));
     if (t >= 1) this.resetMotion();
     return amount;
   }
@@ -412,8 +399,7 @@ export class ControllerScene {
     }
 
     // At rest the controller stays still. Once an answer has finished, ease back to the flat front view.
-    const playing = this.playingToken === this.sequenceToken;
-    if (this.autoFramed && !this.motion && !playing && now - this.lastInteraction > SETTLE_MS) this.view('front');
+    if (this.autoFramed && !this.motion && now - this.lastInteraction > SETTLE_MS) this.view('front');
 
     this.orbit.update(dt);
     this.composer.render(dt);
