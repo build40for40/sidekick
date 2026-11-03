@@ -3,7 +3,10 @@ import { ControllerScene } from './controller/scene';
 import { byId, controls, type View } from './controller/manifest';
 import { PhysicalInput } from './controller/gamepad';
 import { transitionLesson, type Lesson, type LessonKind, type InputSource } from './tutor/lesson';
-import { validateReply, type TutorReply } from './tutor/schema';
+import { validateReply, replySteps, type TutorReply } from './tutor/schema';
+import { DemonstrationPlayer, playbackOptions, type PlaybackOptions } from './tutor/playback';
+import type { GameSelection } from './tutor/knowledge';
+import activeGame from '../knowledge/active-game.json';
 import { VoiceOrchestrator } from './voice/orchestrator';
 import { capabilities, loadLocal, type LocalRuntime } from './voice/local';
 import type { Phase, Progress, VoiceEvent } from './voice/types';
@@ -11,6 +14,9 @@ import type { Phase, Progress, VoiceEvent } from './voice/types';
 export interface SidekickOptions {
   /** Show spoken replies below the controller. The host can render captions from reply events instead. */
   captions?: boolean;
+  /** No game is selected by default. 'active' explicitly selects the pack configuration. */
+  game?: GameSelection;
+  playback?: PlaybackOptions;
 }
 export interface SidekickState {
   phase: Phase;
@@ -20,6 +26,8 @@ export interface SidekickState {
   caption: string;
   error: string | null;
   progress: Progress | null;
+  game: string | null;
+  jargon: { term: string; means: string } | null;
   destroyed: boolean;
 }
 export type SidekickEvent = VoiceEvent
@@ -49,6 +57,8 @@ export interface Sidekick {
   startExercise(kind: LessonKind, controlId: string): void;
   setHints(enabled: boolean): void;
   setCaptions(enabled: boolean): void;
+  setGame(game: GameSelection): void;
+  setPlayback(options: PlaybackOptions): void;
   enableGamepad(enabled: boolean): void;
   destroy(): void;
 }
@@ -58,6 +68,10 @@ const activeMounts = new WeakSet<HTMLElement>();
 
 /** Mount one isolated component. The host owns its dimensions and surrounding UI. */
 export function createSidekick(container: HTMLElement, options: SidekickOptions = {}): Sidekick {
+  playbackOptions(options.playback);
+  const checkGame = (game: GameSelection) => { if (game !== null && game !== 'active' && !activeGame.available_games.includes(game)) throw Error(`Unknown game: ${game}`); };
+  let game: GameSelection = options.game ?? null;
+  checkGame(game);
   if (activeMounts.has(container) || (container.shadowRoot && !ownedRoots.has(container))) throw Error('Sidekick needs an unused mount element.');
   const root = ownedRoots.get(container) ?? container.attachShadow({ mode: 'open' });
   ownedRoots.set(container, root); activeMounts.add(container);
@@ -80,7 +94,7 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   const events = new EventTarget();
   const subscriptions = new Set<EventListener>();
   const abort = new AbortController();
-  let state: SidekickState = { phase: 'ready', mode: 'development', selectedControl: null, lesson: null, caption: '', error: null, progress: null, destroyed: false };
+  let state: SidekickState = { phase: 'ready', mode: 'development', selectedControl: null, lesson: null, caption: '', error: null, progress: null, game: game === 'active' ? activeGame.game : game, jargon: null, destroyed: false };
   let captions = options.captions ?? false;
   let consentPrompt = false;
   let runtime: LocalRuntime | undefined;
@@ -110,6 +124,8 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   }
   function select(id: string, source: InputSource) {
     assertLive(); const c = requireControl(id);
+    if (!pending) voice.stop();
+    player.stop();
     state.selectedControl = id;
     scene.highlight(id); scene.animate(id, c.motion === 'trigger' ? 'squeeze' : 'press');
     state.lesson = transitionLesson(state.lesson, { type: 'input', controlId: id, source });
@@ -120,19 +136,24 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
   try {
     scene = new ControllerScene(find('.scene'), id => select(id, 'virtual'), view => emit({ type: 'view', view }));
   } catch (error) { root.replaceChildren(); activeMounts.delete(container); throw error; }
+  const player = new DemonstrationPlayer((step,durationMs) => {
+    scene.demonstrate(step,durationMs); state.selectedControl = step.controlId;
+  }, () => scene.clearDemonstration(),options.playback);
   const voice = new VoiceOrchestrator(event => {
     if (state.destroyed) return;
-    if (event.type === 'phase') { state.phase = event.phase; if (event.phase !== 'error') state.error = null; }
-    if (event.type === 'error') state.error = event.message;
+    if (event.type === 'phase') { state.phase = event.phase; if (event.phase !== 'error') state.error = null; if (event.phase !== 'speaking') player.stop(); }
+    if (event.type === 'error') { state.error = event.message; player.stop(); }
     if (event.type === 'reply') {
       state.caption = event.reply.spoken;
-      scene.act(event.reply);
-      if (event.reply.controlId) state.selectedControl = event.reply.controlId;
-      if (event.reply.exercise && event.reply.controlId) {
+      state.game = runtime?.getGame() ?? state.game;
+      state.jargon = 'jargon' in event.reply ? event.reply.jargon : null;
+      if ('exercise' in event.reply && event.reply.exercise && event.reply.controlId) {
         state.lesson = transitionLesson(state.lesson, { type: 'start', kind: event.reply.exercise, target: event.reply.controlId });
         applyLesson();
       }
     }
+    if (event.type === 'step') { state.caption = event.step.say; player.showSpokenStep(event.step,event.durationMs); }
+    if (event.type === 'demonstration') player.start(event.steps,event.completedPasses);
     render(); emit(event);
   });
   const physical = new PhysicalInput(id => select(id, 'physical'), message => emit({ type: 'gamepad', message }));
@@ -159,9 +180,9 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
           const loaded = await loadLocal(progress => {
             if (state.destroyed) return;
             state.progress = progress; render(); emit({ type: 'progress', progress });
-          }, abort.signal);
+          }, abort.signal,game);
           if (state.destroyed) { loaded.dispose(); throw new DOMException('Voice setup cancelled.', 'AbortError'); }
-          runtime = loaded; voice.adapters = loaded.adapters; state.mode = 'local'; state.progress = null;
+          runtime = loaded; voice.adapters = loaded.adapters; state.mode = 'local'; state.progress = null; state.game = loaded.getGame();
           voice.finishDownload(); emit({ type: 'mode', mode: 'local' });
         } catch (error) {
           if (!state.destroyed) { state.progress = null; voice.downloadFailed(error); }
@@ -180,9 +201,9 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     },
     stop() { assertLive(); if (!pending) voice.stop(); },
     repeat() { assertLive(); if (!pending) voice.repeat(); },
-    highlight(id) { assertLive(); if (id !== null) requireControl(id); state.selectedControl = id; scene.highlight(id ?? undefined); },
+    highlight(id) { assertLive(); if (id !== null) requireControl(id); player.stop(); state.selectedControl = id; scene.highlight(id ?? undefined); },
     selectControl(id) { select(id, 'virtual'); },
-    action(reply) { assertLive(); const validated = validateReply(reply); scene.act(validated); if (validated.controlId) state.selectedControl = validated.controlId; },
+    action(reply) { assertLive(); const validated = validateReply(reply); if (pending) throw Error('Wait for local voice to finish loading.'); voice.stop(); player.start(replySteps(validated)); },
     setView(view) { assertLive(); if (!['front','shoulders','rear'].includes(view)) throw Error('Unsupported camera view.'); scene.view(view); },
     startExercise(kind, id) {
       assertLive(); const c = requireControl(id);
@@ -194,10 +215,18 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     },
     setHints(enabled) { assertLive(); state.lesson = transitionLesson(state.lesson, { type: 'hints', enabled }); applyLesson(); },
     setCaptions(enabled) { assertLive(); captions = enabled; render(); },
+    setGame(selection) {
+      assertLive(); checkGame(selection);
+      if (pending) throw Error('Wait for local voice to finish loading.');
+      voice.resetConversation(); runtime?.setGame(selection); game = selection;
+      state.game = runtime ? runtime.getGame() : selection === 'active' ? activeGame.game : selection;
+      state.jargon = null; state.caption = ''; state.lesson = null; applyLesson(); render();
+    },
+    setPlayback(settings) { assertLive(); player.configure(settings); },
     enableGamepad(enabled) { assertLive(); physical.stop(); if (enabled) physical.start(); },
     destroy() {
       if (state.destroyed) return;
-      state.destroyed = true; abort.abort(); voice.dispose(); runtime?.dispose(); physical.stop(); scene.dispose();
+      state.destroyed = true; abort.abort(); player.stop(); voice.dispose(); runtime?.dispose(); physical.stop(); scene.dispose();
       emit({ type: 'destroyed' });
       for (const listener of subscriptions) events.removeEventListener('sidekick', listener);
       subscriptions.clear(); root.replaceChildren(); activeMounts.delete(container);
@@ -210,10 +239,13 @@ export function createSidekick(container: HTMLElement, options: SidekickOptions 
     } else if (state.phase === 'listening') api.finishRecording();
     else void api.startRecording();
   };
+  // A phone may background the page mid-loop or mid-inference. Never keep a demonstration running there.
+  const visibility = () => { if (document.hidden && !pending) { voice.stop(); player.stop(); } };
+  document.addEventListener('visibilitychange',visibility,{ signal: abort.signal });
   // Accessible controls stay off screen until keyboard focus enters the group.
   for (const c of controls) {
     const control = document.createElement('button'); control.type = 'button';
-    control.textContent = `${c.label} · ${c.id.replaceAll('-', ' ')}`;
+    control.textContent = `${c.label} · ${c.aliases.join(', ')}`;
     control.onclick = () => api.selectControl(c.id); find('.control-access').append(control);
   }
   render();

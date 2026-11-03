@@ -1,7 +1,7 @@
 import { transitionPhase } from './machine';
 import { TurnGate } from './turn';
 import type { Phase, VoiceAdapters, VoiceEvent, Timings } from './types';
-import { validateReply } from '../tutor/schema';
+import { validateReply, replySteps, type TutorReply, type TutorStep } from '../tutor/schema';
 import { developmentReply } from '../tutor/development';
 export class VoiceOrchestrator {
   private gate = new TurnGate();
@@ -11,7 +11,8 @@ export class VoiceOrchestrator {
   private playback?: AudioBufferSourceNode;
   private timer?: ReturnType<typeof setTimeout>;
   private queue = Promise.resolve();
-  private lastSpoken = '';
+  private lastReply?: TutorReply;
+  private finishPlayback?: () => void;
   phase: Phase = 'ready';
   adapters?: VoiceAdapters;
   constructor(private emit: (event: VoiceEvent) => void) {}
@@ -27,11 +28,13 @@ export class VoiceOrchestrator {
   stop() {
     this.gate.invalidate(); this.adapters?.tutor.interrupt();
     if (this.playback) { this.playback.onended = null; try { this.playback.stop(); } catch { /* already stopped */ } this.playback = undefined; }
+    this.finishPlayback?.(); this.finishPlayback = undefined;
     if (this.recorder?.state === 'recording') { this.recorder.onstop = null; this.recorder.stop(); }
     this.stream?.getTracks().forEach(t => t.stop()); this.stream = undefined;
     clearTimeout(this.timer); this.state('ready');
   }
   dispose() { this.stop(); void this.audio?.close(); this.audio = undefined; }
+  resetConversation() { this.stop(); this.lastReply = undefined; }
   async startRecording() {
     if (!this.adapters) { this.fail(Error('Download local voice models first. The host can also provide a text question.')); return; }
     this.stop(); this.unlockAudio();
@@ -91,29 +94,49 @@ export class VoiceOrchestrator {
     this.state('thinking'); const t = performance.now();
     const reply = validateReply(this.adapters ? await this.adapters.tutor.reply(text) : developmentReply(text));
     if (!this.gate.current(turn)) return;
-    this.emit({ type: 'reply', reply }); this.lastSpoken = reply.spoken;
+    this.emit({ type: 'reply', reply }); this.lastReply = reply;
     const timings: Timings = { transcription, generation: performance.now()-t, synthesis: 0 };
-    if (this.adapters) await this.speak(reply.spoken, turn, timings, ended);
-    else this.state('ready');
+    await this.playReply(reply,turn,timings,ended);
   }
   repeat() {
-    if (!this.lastSpoken || !this.adapters) return;
-    this.stop(); this.unlockAudio(); const turn = this.gate.next(); this.state('speaking');
-    this.enqueue(turn, () => this.speak(this.lastSpoken, turn, { transcription: 0, generation: 0, synthesis: 0 }, performance.now()));
+    if (!this.lastReply) return;
+    this.stop(); if (this.adapters) this.unlockAudio(); const turn = this.gate.next();
+    const reply = this.lastReply;
+    this.enqueue(turn, () => this.playReply(reply,turn,{ transcription: 0, generation: 0, synthesis: 0 },performance.now()));
   }
-  private async speak(text: string, turn: number, timings: Timings, ended: number) {
+  private async playReply(reply: TutorReply, turn: number, timings: Timings, ended: number) {
+    const steps = replySteps(reply);
+    if (this.adapters) {
+      await this.speak(reply.spoken,turn,timings,ended);
+      // Legacy controller replies already say their sole instruction in spoken.
+      if ('steps' in reply) for (let index = 0; index < steps.length; index++) {
+        if (!this.gate.current(turn)) return;
+        await this.speak(steps[index].say,turn,timings,ended,{ step: steps[index], index });
+      }
+    }
+    if (!this.gate.current(turn)) return;
+    this.state('ready');
+    this.emit({ type: 'demonstration', steps, completedPasses: this.adapters && 'steps' in reply ? 1 : 0 });
+  }
+  private async speak(text: string, turn: number, timings: Timings, ended: number, cue?: { step: TutorStep; index: number }) {
     if (!this.gate.current(turn)) return;
     this.state('speaking'); const t = performance.now();
     const { pcm, sampleRate } = await this.adapters!.synthesis.synthesize(text);
     if (!this.gate.current(turn)) return;
-    timings.synthesis = performance.now()-t;
+    timings.synthesis += performance.now()-t;
     const audio = this.audio!;
     if (audio.state !== 'running') throw Error('Audio playback is paused by the browser. Click Repeat to allow playback.');
     const buffer = audio.createBuffer(1, pcm.length, sampleRate); buffer.copyToChannel(new Float32Array(pcm),0);
     const playback = audio.createBufferSource(); playback.buffer = buffer; playback.connect(audio.destination); this.playback = playback;
-    playback.onended = () => { if (this.gate.current(turn)) this.state('ready'); };
-    playback.start(); timings.firstAudible = performance.now()-ended + audio.baseLatency*1000;
+    const finished = new Promise<void>(resolve => {
+      this.finishPlayback = resolve;
+      playback.onended = () => { this.playback = undefined; this.finishPlayback = undefined; resolve(); };
+    });
+    playback.start();
+    if (cue) this.emit({ type: 'step', ...cue, durationMs: pcm.length / sampleRate * 1000 });
+    timings.firstAudible ??= performance.now()-ended + audio.baseLatency*1000;
     // Scheduling estimate includes reported audio latency, not an acoustic measurement.
-    this.emit({ type: 'timing', timings });
+    this.emit({ type: 'timing', timings: { ...timings } });
+    await finished;
   }
 }

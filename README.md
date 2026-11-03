@@ -2,7 +2,7 @@
 
 A welcoming, private game guide powered by a local LLM, built with vanilla TypeScript, Vite and Three.js. The intended experience is to ask questions such as “How do I jump in this game?” or “How do I do this action?” and receive guidance through game actions, sequences of actions and components of the game. The interactive 3D controller supports that guidance by showing the relevant inputs and how to use them. Local voice adapters use Whisper, WebLLM and Kokoro in workers.
 
-The current scaffold implements controller explanations and practice. Game-specific knowledge, action mappings and broader gameplay guidance remain to be implemented; the existing controller facts alone cannot establish how an action works in a particular game.
+The tutor starts with PS5 controller explanations and no selected game. Local mode can load verified Overcooked! 2 or Fortnite knowledge, answer follow-up questions, and narrate multi-step demonstrations. A game must be named in the question or selected by the host. Broader gameplay knowledge beyond the supplied pack is unavailable.
 
 **This is an early scaffold, not a verified complete voice product.** It starts in clearly labelled development tutor mode with deterministic text replies. The temporary 3D controller will be replaced by Blender assets later. Real local inference adapters are implemented; browser verification status is recorded in [VALIDATION.md](docs/VALIDATION.md).
 
@@ -29,7 +29,9 @@ const tutor = createSidekick(document.querySelector<HTMLElement>('#tutor')!);
 tutor.on(event => {
   if (event.type === 'reply') console.log(event.reply.spoken);
 });
-tutor.highlight('right-bumper');
+tutor.highlight('r1');
+// tutor.setGame('overcooked2'); // explicit game context; null restores controller-only mode
+// tutor.setPlayback({ speed: 'medium', maxRepeats: null }); // unlimited visual passes
 // From host UI: tutor.ask('Where is the right bumper?');
 // On unmount: tutor.destroy();
 ```
@@ -38,7 +40,7 @@ Build output includes an ESM entry at `dist/sidekick.js`, declarations and worke
 
 ## Requirements
 
-Initial target: desktop Chrome with WebGPU, a compatible GPU with sufficient free memory, WebAssembly, module workers, Web Audio and microphone access. Serve over HTTPS or localhost. Three.js currently renders with WebGL2; WebGPU is required by WebLLM. Other browsers/devices are not certified. The component scales to the host container; mobile voice is outside the initial scope.
+Current test target: Chrome on a modern laptop with WebGPU, a compatible GPU with sufficient free memory, WebAssembly, module workers, Web Audio and microphone access. Serve over HTTPS or localhost. Three.js renders with WebGL2; WebGPU is required by WebLLM. Phone compatibility testing (iPhone/Safari and Android/Chrome) is deferred. Other browsers/devices are not certified.
 
 Set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` when hosting, as in `vite.config.ts`. Serve JS, WASM and model assets with appropriate content types, CORS and caching. There is no server or production deployment included.
 
@@ -58,7 +60,9 @@ The first download can be large and model initialization can take several minute
 | Workers | `src/workers/` | ASR, generation and synthesis, away from the main UI thread |
 | Evaluation | `evaluation/cases.json` | Small model-independent set, including ambiguity and unsupported claims |
 
-Generation uses manifest facts and the current question only, bounding conversation context. Exercises remain in application state. Constrained JSON is validated before execution or synthesis. Invalid output is rejected, never spoken. Recognition, generation and synthesis are sequenced to avoid overlapping inference for turns; weights remain resident after loading. Old ONNX computations finish in their worker but their results are ignored. WebLLM generation is also interrupted. No arbitrary code, tool URLs or model-generated commands are executed.
+Generation uses controller facts, the explicitly selected game's filtered pack, the latest successful exchange and the current question. Game changes clear the exchange. Exercises remain in application state. Constrained JSON and verified game inputs/prerequisites are validated before execution or synthesis. Invalid output is rejected, never spoken. Recognition, generation and synthesis are sequenced; weights remain resident after loading. Old ONNX computations finish in their worker but their results are ignored. WebLLM generation is also interrupted. No arbitrary code, tool URLs or model-generated commands are executed. Valid JSON and correct control IDs do not prove the model's prose is accurate.
+
+The introduction and each step are spoken once; the matching control animates during that step. Visual sequences then repeat silently at medium speed without a limit. Hosts can set speed and total passes through the API; no settings UI is included. New questions, recording, stop, game changes, page backgrounding and destruction cancel demonstrations. Jargon is available in reply events and state for the host to display.
 
 ## Next work
 

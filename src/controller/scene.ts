@@ -4,7 +4,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { manifest, controls, byId, type View } from './manifest';
-import type { TutorReply } from '../tutor/schema';
+import { replySteps, type TutorReply, type TutorStep } from '../tutor/schema';
 interface Rest { position: THREE.Vector3; rotation: THREE.Euler }
 export class ControllerScene {
   private resizeObserver: ResizeObserver;
@@ -18,7 +18,7 @@ export class ControllerScene {
   private rests = new Map<string, Rest>();
   private outlines = new Map<string, THREE.LineSegments[]>();
   private labelNodes = new Map<string, HTMLElement>();
-  private animation?: { id: string; start: number; action: string };
+  private animation?: { id: string; start: number; action: string; duration: number; hold?: boolean; times?: number; direction?: TutorStep['direction'] };
   private targetCamera?: THREE.Vector3;
   private reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private selected?: string;
@@ -69,8 +69,9 @@ export class ControllerScene {
         const socket = new THREE.Mesh(new THREE.CylinderGeometry(.44,.44,.06,48),this.material('#686f62')); socket.position.set(c.position[0],.2,c.position[2]); this.model.add(socket);
         const ring = new THREE.Mesh(new THREE.TorusGeometry(.26,.018,8,40),this.material('#616c5a')); ring.rotation.x=Math.PI/2; ring.position.y=.08; group.add(ring);
       } else if (c.id.startsWith('dpad')) mesh=this.box(.26,.1,.26,.04,'#333c33');
-      else if (c.motion==='trigger' || c.id.includes('bumper')) mesh=this.box(.95,.16,.3,.08,'#303a31');
-      else mesh=new THREE.Mesh(new THREE.CylinderGeometry(c.label.length>1?.15:.23,c.label.length>1?.15:.23,.11,40),this.material('#303a31'));
+      else if (c.motion==='trigger' || ['l1','r1'].includes(c.id)) mesh=this.box(.95,.16,.3,.08,'#303a31');
+      else if (c.id==='touchpad') mesh=this.box(1.3,.12,.65,.08,'#303a31');
+      else mesh=new THREE.Mesh(new THREE.CylinderGeometry(['cross','circle','square','triangle'].includes(c.id)?.23:.15,['cross','circle','square','triangle'].includes(c.id)?.23:.15,.11,40),this.material('#303a31'));
       mesh.castShadow=true; mesh.receiveShadow=true; group.add(mesh);
       this.register(c.id,group);
     }
@@ -82,7 +83,7 @@ export class ControllerScene {
     node.traverse(child=> { if(child instanceof THREE.Mesh) {
       const outline=new THREE.LineSegments(new THREE.EdgesGeometry(child.geometry,35),new THREE.LineBasicMaterial({ color:'#dde693', transparent:true, opacity:1 })); outline.visible=false; child.add(outline); lines.push(outline);
     }}); this.outlines.set(id,lines);
-    const label=document.createElement('span'); label.className='model-label'; label.textContent=c.label;
+    const label=document.createElement('span'); label.className='model-label'; label.textContent=c.label; label.title=c.aliases.join(', ');
     const marker=new CSS2DObject(label); marker.position.y=.17; node.add(marker); this.labelNodes.set(id,label);
   }
   async loadAsset(url:string) {
@@ -104,12 +105,13 @@ export class ControllerScene {
   }
   showHints(enabled:boolean) { this.hints=enabled; const selected=this.selected; this.highlight(selected); }
   act(reply:TutorReply) {
-    if(reply.action==='none') return;
-    this.highlight(reply.controlId);
-    if(reply.action!=='highlight') this.animate(reply.controlId!,reply.action);
+    const step=replySteps(reply)[0];
+    if(step) this.demonstrate(step,1100);
   }
-  animate(id:string, action='press') {
-    this.resetMotion(); this.animation={id,start:performance.now(),action};
+  demonstrate(step:TutorStep,durationMs:number) { this.highlight(step.controlId); this.resetMotion(); if(step.action!=='highlight') this.animate(step.controlId,step.action,{...step,durationMs}); }
+  clearDemonstration() { this.resetMotion(); this.highlight(); }
+  animate(id:string, action='press', options: { durationMs?: number; hold?: boolean; times?: number; direction?: TutorStep['direction'] } = {}) {
+    this.resetMotion(); this.animation={id,start:performance.now(),action,duration:options.durationMs ?? 1100,hold:options.hold,times:options.times,direction:options.direction};
   }
   private resetMotion() {
     if(!this.animation) return;
@@ -130,12 +132,17 @@ export class ControllerScene {
   private render() {
     if(this.targetCamera) { this.camera.position.lerp(this.targetCamera,.06); if(this.camera.position.distanceTo(this.targetCamera)<.01) this.targetCamera=undefined; }
     if(this.animation) {
-      const {id,start,action}=this.animation; const t=(performance.now()-start)/1000;
-      if(t>1.1) this.resetMotion(); else {
+      const {id,start,action,duration,hold,times=1,direction}=this.animation; const t=(performance.now()-start)/duration;
+      if(t>=1) this.resetMotion(); else {
         const node=this.nodes.get(id)!, rest=this.rests.get(id)!;
-        const amount=this.reduced ? (t<.45?.5:0) : Math.sin(Math.PI*t/1.1);
+        // Reduced motion retains the highlight but leaves the artist's transforms intact.
+        const cycle=(t*times)%1;
+        const amount=this.reduced ? 0 : hold ? Math.min(cycle/.15,1,(1-cycle)/.15) : Math.sin(Math.PI*cycle);
         node.position.copy(rest.position); node.rotation.copy(rest.rotation);
-        if(action==='tilt') node.rotation.z=rest.rotation.z+amount*.35;
+        if(action==='tilt') {
+          const axis=new THREE.Vector3(direction==='up'||direction==='down'?1:0,0,direction==='up'||direction==='down'?0:1);
+          node.rotateOnAxis(axis,amount*.35*(direction==='right'||direction==='down'?-1:1));
+        }
         else {
           const movement=byId.get(id)!.movement;
           const axis=new THREE.Vector3(movement.axis==='x'?1:0,movement.axis==='y'?1:0,0);

@@ -47,3 +47,13 @@ This is one observed turn, not a benchmark, percentile, target or acoustic measu
 - Model output is untrusted. JSON validation prevents arbitrary actions but does not guarantee accurate or appropriate natural language. Evaluate all cases on each model before shipping.
 - No continuous listening, camera, account, persistence, backend, training, fine-tuning, deployment, full offline shell or mobile voice support.
 - Model cache eviction, GPU loss, worker hangs and very low-memory devices need broader testing. ASR/TTS compute already in flight is allowed to finish in its worker; turn tokens suppress stale output, while WebLLM is interrupted explicitly.
+
+## Knowledge integration revision — 3 November 2026
+
+The integration adds runtime knowledge assets, verified-row filtering, game/prerequisite validation, bounded follow-up context, PS5 master IDs, narrated step sequencing and cancellable visual loops. No game is selected implicitly from `active-game.json`; a host selection or explicit game statement establishes context. Narration runs once and visual repetitions default to medium/unlimited. Speed/repetition settings and jargon rendering belong to the host API.
+
+Automated checks cover both games' gold contracts, controller-only context, game switching, discarded cancelled history, invalid step/modifier rejection, filtering unverified prerequisites, visual loop limits/cancellation and step/audio ordering. Both pack dry runs pass (Overcooked 10/10, Fortnite 11/11). These are contract/fixture results, not local-model quality measurements. `evaluation/run.ts` provides a real-local-model comparison helper that rejects fixture mode.
+
+A desktop in-app Chromium browser rendered the revised temporary PS5 controller and all 19 labels. This is a rendering smoke check only. The new pack prompt, constrained schema, multi-step narration, microphone path and answer quality have **not** been exercised with real models in this revision. The earlier Qwen/Kokoro observations above used the previous controller-only prompt. Current target is Chrome on a modern laptop. iPhone/Safari and Android/Chrome compatibility tests are deferred at the user's request.
+
+Overcooked chop/throw and dash mappings remain disputed in the source pack; no physical verification was performed and no verification flags were upgraded. Artist GLB transforms, holding/double-press appearance, reduced motion and real audio synchronization still need manual checks with the final asset and models. The existing large runtime/WASM bundle warning remains.

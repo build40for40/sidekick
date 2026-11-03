@@ -20,9 +20,9 @@ Run `npm ci` and `npm run build`. Deploy the **entire `dist/` directory**, prese
 
   // Wire these functions to the host's own buttons, inputs or lesson flow.
   // tutor.ask('Where is the right bumper?');
-  // tutor.highlight('right-bumper');
+  // tutor.highlight('r1');
   // tutor.setView('shoulders');
-  // tutor.startExercise('find', 'a');
+  // tutor.startExercise('find', 'cross');
   // tutor.setHints(false);
 
   // On host unmount/navigation:
@@ -52,12 +52,18 @@ All functions are typed through `Sidekick` and `createSidekick`. Calls after des
 | `startExercise('find' \| 'click' \| 'practise', controlId)` | Start application-owned practice. `click` requires a stick. |
 | `setHints(boolean)` | Show/hide the current exercise's hint. |
 | `setCaptions(boolean)` | Opt into captions inside the component; alternatively render host captions from reply events. |
+| `setGame(gameOrNull)` | Explicitly select `overcooked2`, `fortnite`, or `active` (the runtime pack configuration); `null` restores controller-only mode. Cancels playback and clears conversation/lesson state. Local questions that name an available game also establish context. |
+| `setPlayback({ speed, maxRepeats })` | Set animation speed (`slow`, `medium`, `fast`) and total visual passes (positive integer or `null` for unlimited). Defaults: medium/unlimited. Cancels the current demonstration; settings apply to the next one. Narration is spoken once, independently of silent visual repeats. |
 | `enableGamepad(boolean)` | Enable/disable actual standard-mapped Gamepad API input. |
 | `getState()` / `getControls()` | Inspect phase, mode, selected control, lesson, caption, error, download progress and controller facts. |
 | `on(listener)` | Subscribe to typed events; returns an unsubscribe function. |
 | `destroy()` | Abort and release resources, clear the component, emit `destroyed`, detach subscriptions. |
 
 The event union includes `phase`, `progress`, `mode`, `transcript`, `reply`, `error`, `timing`, `selection`, `lesson`, `view`, `gamepad` and `destroyed`. Host text input, captions, stop/repeat and lesson UI can be completely separate from the embedded view. Virtual and physical input remain distinguishable through selection and lesson events. Permission, model and inference errors are emitted and shown in the component. Synchronous validation errors throw; initialization errors also reject its promise. Questions and recording requests during setup are rejected.
+
+Mount options also accept `game` and `playback`. Leaving `game` unset never selects the game's configured default. `setGame('active')` is an explicit request to use `knowledge/active-game.json`; changing that JSON and rebuilding switches the default pack without application-code changes. Vite emits runtime knowledge files as separate assets; deploy them alongside the ESM entry and workers. The master PS5 labels and geometry are built together.
+
+Real local replies contain `spoken`, `found`, `actionId`, `steps`, and `jargon`. Each step contains `action`, `controlId`, `say`, and optional `hold`, `times`, `direction`. `action(reply)` accepts this multi-step format as well as the original single-action controller format; it validates the entire reply before playing it. `repeat()` replays the last validated introduction and all narrated steps. The `step` event fires when that step's audio starts, with its index and duration. `demonstration` indicates the start of silent visual repeats. State contains the selected `game` and latest `jargon`; the host owns any glossary display. Development mode remains a labelled controller fixture, with no game inference or speech.
 
 ## Voice consent and browser gestures
 

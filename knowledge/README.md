@@ -68,3 +68,9 @@ node knowledge/tools/check-model.mjs public/assets/controller.glb
 - [ ] Check the glossary with a real Fortnite player
 - [ ] Overcooked: fill in `games/overcooked2/ps5-check-sheet.md` on a real PS5, then set those rows to `"device"`
 - [ ] When Lawrence's model lands, run `check-model.mjs` and rename its parts to the master labels
+
+## Runtime selection
+
+The application starts with no selected game and answers controller questions by default. The host explicitly selects a game with `setGame(id)` or `setGame("active")`; the latter reads the configured game above. Local questions such as "In Overcooked, how do I pick up a tomato?" also establish context, which is retained for follow-ups. `setGame(null)` restores controller-only mode. Changing `active-game.json` and rebuilding/deploying selects a different configured pack without application-code changes; it does not assert that every visitor is playing that game.
+
+Vite emits prompt/config/game files as runtime assets alongside the ESM and worker builds. Only verified action/glossary rows and usable prerequisites enter the model prompt. Controller labels come from the master PS5 file when building the manifest. The generic prompt contains no Overcooked example, so controller-only questions do not inherit game facts.

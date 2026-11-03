@@ -1,3 +1,4 @@
+import controller from '../../knowledge/controllers/ps5.json';
 export type View = 'front' | 'shoulders' | 'rear';
 export type Motion = 'press' | 'trigger' | 'stick';
 export interface Control {
@@ -6,32 +7,36 @@ export interface Control {
   movement: { axis: 'y' | 'x'; range: number; rotation?: boolean }; gamepadButton?: number;
   gamepadAxes?: [number, number]; position: [number, number, number];
 }
-const control = (id: string, label: string, aliases: string[], description: string, position: Control['position'], gamepadButton: number, motion: Motion = 'press', view: View = 'front'): Control => ({
-  id, node: id, label, aliases, description, highlights: [id], view, motion, position, gamepadButton,
-  movement: motion === 'trigger' ? { axis: 'x', range: .35, rotation: true } : { axis: 'y', range: -.075 },
+// Only geometry and standard Gamepad API indices live here. Names and IDs belong to the pack.
+const layout: Record<string, { position: Control['position']; button?: number; axes?: [number,number]; view?: View }> = {
+  cross: { position: [1.55,.36,.18], button: 0 }, circle: { position: [1.98,.36,-.24], button: 1 },
+  square: { position: [1.12,.36,-.24], button: 2 }, triangle: { position: [1.55,.36,-.66], button: 3 },
+  l1: { position: [-1.45,.32,-1.15], button: 4, view: 'shoulders' }, r1: { position: [1.45,.32,-1.15], button: 5, view: 'shoulders' },
+  l2: { position: [-1.45,-.06,-1.36], button: 6, view: 'rear' }, r2: { position: [1.45,-.06,-1.36], button: 7, view: 'rear' },
+  create: { position: [-.9,.3,-.65], button: 8 }, options: { position: [.9,.3,-.65], button: 9 },
+  'left-stick': { position: [-.73,.42,.65], button: 10, axes: [0,1] }, 'right-stick': { position: [.73,.42,.65], button: 11, axes: [2,3] },
+  'dpad-up': { position: [-1.55,.31,-.66], button: 12 }, 'dpad-down': { position: [-1.55,.31,.18], button: 13 },
+  'dpad-left': { position: [-1.97,.31,-.24], button: 14 }, 'dpad-right': { position: [-1.13,.31,-.24], button: 15 },
+  ps: { position: [0,.3,.43], button: 16 }, touchpad: { position: [0,.3,-.65] }, mute: { position: [0,.3,.82] },
+};
+export const controls: Control[] = controller.buttons.map(button => {
+  const geometry = layout[button.id];
+  if (!geometry) throw Error(`Missing controller geometry: ${button.id}`);
+  const motion = button.motion as Motion;
+  const click = button.id === 'left-stick' ? 'L3' : 'R3';
+  // Stick use fields in the pack include common game mappings; those are not universal controller facts.
+  const description = motion === 'stick'
+    ? `${click} means pressing the ${button.name.toLowerCase()} straight down until it clicks. Tilting the stick is different.`
+    : `${button.name} is at the ${button.zone}. ${motion === 'trigger' ? 'Squeeze it gradually, then let go.' : 'Give it a short press.'}`;
+  return { id: button.id, node: button.id, label: button.name, aliases: [button.name.toLowerCase(), ...button.aka.map(a => a.toLowerCase())], description,
+    highlights: [button.id], motion, view: geometry.view ?? 'front', position: geometry.position,
+    gamepadButton: geometry.button, gamepadAxes: geometry.axes,
+    movement: motion === 'trigger' ? { axis: 'x', range: .35, rotation: true } : { axis: 'y', range: -.075 },
+  };
 });
-export const controls: Control[] = [
-  control('a', 'A', ['a button', 'bottom face button'], 'A is the lower button in the group of four on the right. Many games use it to confirm or jump; each game can differ.', [1.55,.36,.18], 0),
-  control('b', 'B', ['b button'], 'B is the rightmost face button. Many games use it to go back.', [1.98,.36,-.24], 1),
-  control('x', 'X', ['x button'], 'X is the leftmost face button.', [1.12,.36,-.24], 2),
-  control('y', 'Y', ['y button'], 'Y is the top face button.', [1.55,.36,-.66], 3),
-  control('left-bumper', 'LB', ['lb', 'left bumper', 'l1'], 'The left bumper is the narrow button on the top left edge. Give it a short press.', [-1.45,.32,-1.15], 4, 'press', 'shoulders'),
-  control('right-bumper', 'RB', ['rb', 'right bumper', 'r1'], 'The right bumper is the narrow button on the top right edge. Give it a short press.', [1.45,.32,-1.15], 5, 'press', 'shoulders'),
-  control('left-trigger', 'LT', ['lt', 'left trigger', 'l2'], 'The left trigger sits behind the left bumper. Squeeze it gradually, then let go.', [-1.45,-.06,-1.36], 6, 'trigger', 'rear'),
-  control('right-trigger', 'RT', ['rt', 'right trigger', 'r2'], 'The right trigger sits behind the right bumper. Squeeze it gradually, then let go.', [1.45,-.06,-1.36], 7, 'trigger', 'rear'),
-  control('view', 'View', ['view', 'back', 'select'], 'View is the small button left of the centre.', [-.45,.3,-.35], 8),
-  control('menu', 'Menu', ['menu', 'start'], 'Menu is the small button right of the centre. Many games use it to pause.', [.45,.3,-.35], 9),
-  {...control('left-stick', 'LS', ['left stick', 'left thumbstick', 'l3', 'clicking the stick', 'click the stick', 'stick clicking'], 'Clicking a stick means pressing it straight down like a button, without tilting it. Try the left stick.', [-1.45,.42,-.42], 10, 'stick'), gamepadAxes: [0,1]},
-  {...control('right-stick', 'RS', ['right stick', 'right thumbstick', 'r3'], 'You can tilt the right stick to move it, or press straight down to click it like a button.', [.73,.42,.65], 11, 'stick'), gamepadAxes: [2,3]},
-  control('dpad-up', '↑', ['d pad up', 'd-pad up', 'up'], 'This is the top arm of the directional pad, often called the D-pad.', [-.73,.31,.38], 12),
-  control('dpad-down', '↓', ['d pad down', 'd-pad down', 'down'], 'This is the bottom arm of the D-pad.', [-.73,.31,.94], 13),
-  control('dpad-left', '←', ['d pad left', 'd-pad left'], 'This is the left arm of the D-pad.', [-1.01,.31,.66], 14),
-  control('dpad-right', '→', ['d pad right', 'd-pad right'], 'This is the right arm of the D-pad.', [-.45,.31,.66], 15),
-];
 export type ControlId = string;
 export const byId = new Map(controls.map(c => [c.id, c]));
 export const manifest = {
-  name: 'Xbox-style reference controller', asset: null as string | null,
-  temporary: true, controls,
+  name: controller.name, asset: null as string | null, temporary: true, controls,
   views: { front: [0,6.5,5.5], shoulders: [0,3,-5.7], rear: [0,-3.8,-5.6] } as Record<View, [number,number,number]>,
 };
