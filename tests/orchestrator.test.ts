@@ -12,7 +12,7 @@ class FakeAudioContext {
 }
 function adapters():VoiceAdapters {return {
   recognition:{transcribe:vi.fn(async()=> 'Where is A?')},
-  tutor:{reply:vi.fn(async()=>({spoken:'Here is A.',action:'highlight' as const,controlId:'a'})),interrupt:vi.fn()},
+  tutor:{reply:vi.fn(async()=>({spoken:'Here is Cross.',action:'highlight' as const,controlId:'cross'})),interrupt:vi.fn()},
   synthesis:{synthesize:vi.fn(async()=>({pcm:new Float32Array(10),sampleRate:24000}))},
 };}
 beforeEach(()=>{plays=0;stops=0;vi.stubGlobal('AudioContext',FakeAudioContext);});
@@ -21,8 +21,8 @@ describe('turn orchestration',()=> {
   it('ignores a stale generation after a new question',async()=> {
     const events:VoiceEvent[]=[];const voice=new VoiceOrchestrator(e=>events.push(e));const a=adapters();voice.adapters=a;
     const delayed=deferred<any>();vi.mocked(a.tutor.reply).mockImplementationOnce(()=>delayed.promise);
-    voice.ask('old');await flush();voice.ask('new');delayed.resolve({spoken:'Stale.',action:'press',controlId:'b'});await flush();
-    expect(events.filter(e=>e.type==='reply')).toEqual([{type:'reply',reply:{spoken:'Here is A.',action:'highlight',controlId:'a'}}]);expect(plays).toBe(1);
+    voice.ask('old');await flush();voice.ask('new');delayed.resolve({spoken:'Stale.',action:'press',controlId:'circle'});await flush();
+    expect(events.filter(e=>e.type==='reply')).toEqual([{type:'reply',reply:{spoken:'Here is Cross.',action:'highlight',controlId:'cross'}}]);expect(plays).toBe(1);
   });
   it('never plays stale synthesis and stops active playback',async()=> {
     const voice=new VoiceOrchestrator(()=>{});const a=adapters();voice.adapters=a;

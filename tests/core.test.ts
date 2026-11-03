@@ -5,9 +5,20 @@ import { TurnGate } from '../src/voice/turn';
 import { mappedControl } from '../src/controller/gamepad';
 import { developmentReply } from '../src/tutor/development';
 describe('tutor action boundary',()=> {
+  it('validates Fortnite move sequences',()=> {
+    expect(validateReply({spoken:'Circle, then R2.',action:'sequence',sequenceId:'build-wall'}).sequenceId).toBe('build-wall');
+    for(const raw of [{spoken:'x',action:'sequence'},{spoken:'x',action:'sequence',sequenceId:'fly'},{spoken:'x',action:'sequence',sequenceId:'jump',controlId:'cross'},{spoken:'x',action:'highlight',controlId:'cross',sequenceId:'jump'}]) expect(()=>validateReply(raw)).toThrow();
+    expect(developmentReply('How do I build a wall?')).toMatchObject({action:'sequence',sequenceId:'build-wall'});
+    expect(developmentReply('How do I aim and shoot?')).toMatchObject({action:'sequence',sequenceId:'aim-shoot'});
+    expect(developmentReply('Where is R2?')).toMatchObject({controlId:'right-trigger'});
+  });
+  it('every sequence step names a real control',async()=> {
+    const { sequences, byId } = await import('../src/controller/manifest');
+    for(const s of sequences) for(const st of s.steps) expect(byId.has(st.control)).toBe(true);
+  });
   it('accepts only known controls and actions',()=> {
     expect(validateReply({spoken:'Here is RB.',action:'highlight',controlId:'right-bumper'}).controlId).toBe('right-bumper');
-    for(const raw of ['oops',{spoken:'x',action:'execute'},{spoken:'x',action:'press',controlId:'bad'},{spoken:'x',action:'press'},{spoken:'x',action:'none',code:'alert(1)'},{spoken:'x',action:'tilt',controlId:'a'},{spoken:'x',action:'squeeze',controlId:'left-stick'},{spoken:'x',action:'none',exercise:'find'}]) expect(()=>validateReply(raw)).toThrow();
+    for(const raw of ['oops',{spoken:'x',action:'execute'},{spoken:'x',action:'press',controlId:'bad'},{spoken:'x',action:'press'},{spoken:'x',action:'none',code:'alert(1)'},{spoken:'x',action:'tilt',controlId:'cross'},{spoken:'x',action:'squeeze',controlId:'left-stick'},{spoken:'x',action:'none',exercise:'find'}]) expect(()=>validateReply(raw)).toThrow();
   });
   it('never accepts malformed output as speech',()=> {
     expect(()=>validateReply('{"spoken":"oops"')).toThrow();
@@ -21,10 +32,10 @@ describe('tutor action boundary',()=> {
 });
 describe('lesson completion belongs to the app',()=> {
   it('rejects wrong input and distinguishes virtual from physical',()=> {
-    const initial=transitionLesson(null,{type:'start',kind:'find',target:'a'});
-    expect(transitionLesson(initial,{type:'input',controlId:'b',source:'physical'})).toBe(initial);
-    expect(transitionLesson(initial,{type:'input',controlId:'a',source:'virtual'})).toMatchObject({complete:true,source:'virtual'});
-    expect(transitionLesson(initial,{type:'input',controlId:'a',source:'physical'})).toMatchObject({complete:true,source:'physical'});
+    const initial=transitionLesson(null,{type:'start',kind:'find',target:'cross'});
+    expect(transitionLesson(initial,{type:'input',controlId:'circle',source:'physical'})).toBe(initial);
+    expect(transitionLesson(initial,{type:'input',controlId:'cross',source:'virtual'})).toMatchObject({complete:true,source:'virtual'});
+    expect(transitionLesson(initial,{type:'input',controlId:'cross',source:'physical'})).toMatchObject({complete:true,source:'physical'});
   });
   it('can remove hints and start a new exercise',()=> {
     let state=transitionLesson(null,{type:'start',kind:'practise',target:'right-bumper'});

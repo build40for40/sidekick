@@ -8,3 +8,4 @@ dist/
 .DS_Store
 coverage/
 *.blend1
+scratch/

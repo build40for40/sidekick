@@ -1,6 +1,6 @@
 import './style.css';
 import { ControllerScene } from './controller/scene';
-import { controls, byId, manifest } from './controller/manifest';
+import { controls, byId, manifest, sequences, sequenceById, type Sequence } from './controller/manifest';
 import { PhysicalInput } from './controller/gamepad';
 import { transitionLesson, type Lesson, type InputSource, type LessonKind } from './tutor/lesson';
 import { VoiceOrchestrator } from './voice/orchestrator';
@@ -10,11 +10,11 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
 <header><a class="wordmark" href="./" aria-label="Sidekick home"><span class="brand-icon">✳</span> sidekick<span class="beta">EARLY ACCESS</span></a><span class="private"><span class="dot"></span> On your device. In your corner.</span></header>
 <main><section class="intro"><div><p class="eyebrow">A LITTLE HELP. A WHOLE NEW WORLD.</p><h1>Make yourself<br>a player<span>.</span></h1></div><p class="intro-copy">New to controllers? You’re in the right place.<br>Ask a question. Get to know the buttons.<br>Go at your own pace.</p></section>
-<div class="workspace"><section class="explorer" aria-label="Controller explorer"><div class="panel-top"><span><span class="dot"></span> YOUR CONTROLLER</span><span class="asset-tag">TEMPORARY 3D MODEL</span></div><div id="scene"></div><div class="view-controls" role="group" aria-label="Camera views"><button data-view="front" class="selected">Front</button><button data-view="shoulders">Shoulders</button><button data-view="rear">Back</button></div><div class="explorer-footer"><span>↔ Drag to look around <span class="separator">·</span> Click a control to explore</span><button id="reset" class="text-button">Reset view ↗</button></div></section>
-<section class="tutor" aria-label="Voice tutor"><div class="panel-top"><span>MEET YOUR SIDEKICK</span><span id="mode" class="fixture-tag">DEVELOPMENT TUTOR</span></div><div class="tutor-face" aria-hidden="true"><span></span><span></span><i></i></div><p class="tutor-heading">Let’s get comfortable.</p><p id="reply" aria-live="polite">Every button is a new possibility. Ask me where one is, or pick something to explore.</p><div class="status-row"><span class="dot"></span><span id="status" role="status">Ready · text exploration</span></div><button id="talk" class="talk" aria-label="Start recording" disabled><span aria-hidden="true">♩</span> <span id="talk-label">Talk to Sidekick</span></button><p id="voice-note" class="small centered">Enable local voice below to use your microphone.</p><div class="speech-tools"><button id="repeat" disabled>↻ Repeat</button><button id="stop">◼ Stop</button><label><input id="captions" type="checkbox" checked> Captions</label></div><p id="transcript" class="transcript" aria-live="polite"></p><form id="text-form"><label for="question" class="sr-only">Type a question</label><input id="question" placeholder="Or type a question…" maxlength="1200" autocomplete="off"><button aria-label="Send question">↑</button></form><div class="suggestions"><button data-question="Where is the right bumper?">Where’s the right bumper? ↗</button><button data-question="What does clicking the stick mean?">What does clicking a stick mean? ↗</button></div></section></div>
-<section class="below"><div class="practice"><p class="eyebrow">SMALL STEPS, BIG CONFIDENCE</p><h2>A little practice goes a long way.</h2><div class="lesson-buttons"><button data-lesson="find"><b>01</b><span>Find a control<small>Start with the A button</small></span><span>↗</span></button><button data-lesson="click"><b>02</b><span>Click a stick<small>Discover a hidden button</small></span><span>↗</span></button><button data-lesson="practise"><b>03</b><span>Try it yourself<small>Find the right bumper</small></span><span>↗</span></button></div><div class="lesson-state"><p id="lesson-status" role="status">No pressure. Pick a practice when you’re ready.</p><label><input id="hints" type="checkbox" checked> Show hints</label></div></div><aside class="setup"><div class="setup-title"><span>↓</span><h2>Your voice. Your device.</h2></div><p>Download the local models once to talk. Your audio and questions stay in this browser. Model downloads may be large and take several minutes.</p><button id="download">Enable local voice <span>↓</span></button><progress id="progress" max="100" hidden></progress><p id="download-status" role="status" class="small">Whisper + Qwen 1.5B + Kokoro · desktop Chrome + WebGPU</p></aside></section>
+<div class="workspace"><section class="explorer" aria-label="Controller explorer"><div class="panel-top"><span><span class="dot"></span> YOUR CONTROLLER</span><span class="game-chip"><b>Fortnite</b> · PS5 DualSense</span></div><div id="scene"><div id="steps" class="steps" aria-live="polite" hidden></div></div><div class="moves" role="group" aria-label="Fortnite moves"><span class="moves-title">SHOW ME HOW TO</span><div id="move-list"></div></div><div class="view-controls" role="group" aria-label="Camera views"><button data-view="front" class="selected">Front</button><button data-view="shoulders">Shoulders</button><button data-view="rear">Back</button></div><div class="explorer-footer"><span>↔ Drag to look around <span class="separator">·</span> Click a control to explore</span><button id="reset" class="text-button">Reset view ↗</button></div></section>
+<section class="tutor" aria-label="Voice tutor"><div class="panel-top"><span>MEET YOUR SIDEKICK</span><span id="mode" class="fixture-tag">DEVELOPMENT TUTOR</span></div><div class="tutor-face" aria-hidden="true"><span></span><span></span><i></i></div><p class="tutor-heading">Let’s get comfortable.</p><p id="reply" aria-live="polite">Every button is a new possibility. Ask me where one is, or pick something to explore.</p><div class="status-row"><span class="dot"></span><span id="status" role="status">Ready · text exploration</span></div><button id="talk" class="talk" aria-label="Start recording" disabled><span aria-hidden="true">♩</span> <span id="talk-label">Talk to Sidekick</span></button><p id="voice-note" class="small centered">Enable local voice below to use your microphone.</p><div class="speech-tools"><button id="repeat" disabled>↻ Repeat</button><button id="stop">◼ Stop</button><label><input id="captions" type="checkbox" checked> Captions</label></div><p id="transcript" class="transcript" aria-live="polite"></p><form id="text-form"><label for="question" class="sr-only">Type a question</label><input id="question" placeholder="Or type a question…" maxlength="1200" autocomplete="off"><button aria-label="Send question">↑</button></form><div class="suggestions"><button data-question="How do I build a wall?">How do I build a wall? ↗</button><button data-question="How do I aim and shoot?">How do I aim and shoot? ↗</button><button data-question="Where is R2?">Where’s R2? ↗</button></div></section></div>
+<section class="below"><div class="practice"><p class="eyebrow">SMALL STEPS, BIG CONFIDENCE</p><h2>A little practice goes a long way.</h2><div class="lesson-buttons"><button data-lesson="find"><b>01</b><span>Find a control<small>Start with Cross</small></span><span>↗</span></button><button data-lesson="click"><b>02</b><span>Click a stick<small>Discover a hidden button</small></span><span>↗</span></button><button data-lesson="practise"><b>03</b><span>Try it yourself<small>Find R1</small></span><span>↗</span></button></div><div class="lesson-state"><p id="lesson-status" role="status">No pressure. Pick a practice when you’re ready.</p><label><input id="hints" type="checkbox" checked> Show hints</label></div></div><aside class="setup"><div class="setup-title"><span>↓</span><h2>Your voice. Your device.</h2></div><p>Download the local models once to talk. Your audio and questions stay in this browser. Model downloads may be large and take several minutes.</p><button id="download">Enable local voice <span>↓</span></button><progress id="progress" max="100" hidden></progress><p id="download-status" role="status" class="small">Whisper + Qwen 1.5B + Kokoro · desktop Chrome + WebGPU</p></aside></section>
 <details class="control-directory"><summary>Explore all controls <span>Keyboard-friendly control list</span></summary><div id="control-list"></div></details><div class="physical"><label><input id="physical" type="checkbox"> Use a physical controller (optional)</label><p id="gamepad-status">No physical controller is needed.</p></div>
-<footer><span class="wordmark">✳ sidekick</span><span>A more welcoming way to play.</span><span>Scaffold v0.1 · English · Xbox-style reference</span></footer></main>`;
+<footer><span class="wordmark">✳ sidekick</span><span>A more welcoming way to play.</span><span>PS5 DualSense · Fortnite moves are demo data</span></footer><p class="credit" id="credit"></p></main>`;
 const el=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 const reply=el('reply'), transcript=el('transcript'), status=el('status'), talk=el<HTMLButtonElement>('talk'), question=el<HTMLInputElement>('question');
 let lesson:Lesson|null=null;
@@ -33,13 +33,13 @@ function updateLesson() {
 }
 function select(id:string,source:InputSource='virtual') {
   if(busy) return;
-  const c=byId.get(id)!;
+  const c=byId.get(id)!; stopMove();
   scene?.highlight(id); scene?.animate(id,c.motion==='trigger'?'squeeze':'press');
   lesson=transitionLesson(lesson,{type:'input',controlId:id,source});
   updateLesson();
   say(lesson && !lesson.complete && lesson.target!==id ? `That’s ${c.label}. Try ${byId.get(lesson.target)!.label}.` : c.description);
 }
-try { scene=new ControllerScene(el('scene'),id=>select(id),view=>app.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button=>button.classList.toggle('selected',button.dataset.view===view))); if(manifest.asset) void scene.loadAsset(manifest.asset).catch(e=>say(`Asset could not load: ${e.message}`)); }
+try { scene=new ControllerScene(el('scene'),id=>select(id),view=>app.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button=>button.classList.toggle('selected',button.dataset.view===view))); if(import.meta.env.DEV) (window as any).__scene=scene; if(manifest.asset) void scene.loadAsset(manifest.asset).catch(e=>{ scene?.showPlaceholder(); say(`Asset could not load: ${e.message}`); }); }
 catch { el('scene').innerHTML='<p class="render-error">3D rendering is unavailable. Try enabling hardware acceleration. You can still use the control list below.</p>'; }
 const voice=new VoiceOrchestrator(event=> {
   if(event.type==='phase') {
@@ -50,7 +50,7 @@ const voice=new VoiceOrchestrator(event=> {
     talk.setAttribute('aria-label',event.phase==='listening'?'Finish recording':'Start recording');
     talk.setAttribute('aria-pressed',String(event.phase==='listening'));
   } else if(event.type==='reply') {
-    say(event.reply.spoken); scene?.act(event.reply);
+    say(event.reply.spoken); if(event.reply.action==='sequence') void playMove(sequenceById.get(event.reply.sequenceId!)!,false); else { stopMove(); scene?.act(event.reply); }
     if(event.reply.exercise && event.reply.controlId) { lesson=transitionLesson(lesson,{type:'start',kind:event.reply.exercise,target:event.reply.controlId}); el<HTMLInputElement>('hints').checked=true; updateLesson(); }
   } else if(event.type==='error') say(event.message);
   else if(event.type==='transcript') transcript.textContent=`You: ${event.text}`;
@@ -63,11 +63,29 @@ talk.onclick=()=>{ if(voice.phase==='listening') voice.finishRecording(); else v
 el('stop').onclick=()=>voice.stop(); el('repeat').onclick=()=>voice.repeat();
 el<HTMLInputElement>('captions').onchange=e=>{ const enabled=(e.target as HTMLInputElement).checked; reply.hidden=!enabled; transcript.hidden=!enabled; };
 app.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button=>button.onclick=()=>{scene?.view(button.dataset.view as 'front'); app.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('selected',b===button));});
-el('reset').onclick=()=>scene?.view('front');
-for(const c of controls) { const button=document.createElement('button'); button.textContent=`${c.label} · ${c.id.replaceAll('-',' ')}`; button.onclick=()=>select(c.id); el('control-list').append(button); }
+el('reset').onclick=()=>{ stopMove(); scene?.clear(); };
+el('credit').textContent=`3D model: ${manifest.credit}`;
+const steps=el('steps'), moveList=el('move-list');
+let moveRun=0;
+function stopMove() { moveRun++; scene?.stopSequence(); steps.hidden=true; moveList.querySelectorAll('button').forEach(b=>b.classList.remove('playing')); }
+async function playMove(move:Sequence, speak=true) {
+  if(!scene) return; stopMove(); const run=moveRun;
+  lesson=null; el('lesson-status').textContent='No pressure. Pick a practice when you’re ready.';
+  moveList.querySelector(`[data-move="${move.id}"]`)?.classList.add('playing');
+  if(speak) say(`${move.summary}`);
+  steps.innerHTML=`<p class="steps-title">${move.game} · ${move.title}</p><ol>${move.steps.map((st,i)=>{ const c=byId.get(st.control)!; return `<li data-step="${i}"><span class="key">${c.glyph}</span><span>${st.caption}</span></li>`; }).join('')}</ol><button class="replay" type="button">↻ Replay</button>`;
+  steps.querySelector<HTMLButtonElement>('.replay')!.onclick=()=>void playMove(move,false);
+  steps.hidden=false;
+  const done=await scene.playSequence(move,(i)=>steps.querySelectorAll('li').forEach((li,j)=>{ li.classList.toggle('active',j===i); li.classList.toggle('done',j<i); }));
+  if(run!==moveRun) return;
+  if(done) { steps.querySelectorAll('li').forEach(li=>{li.classList.remove('active'); li.classList.add('done');}); steps.classList.add('complete'); setTimeout(()=>steps.classList.remove('complete'),900); }
+  moveList.querySelectorAll('button').forEach(b=>b.classList.remove('playing'));
+}
+for(const move of sequences) { const b=document.createElement('button'); b.dataset.move=move.id; b.textContent=move.title; b.onclick=()=>{ voice.stop(); void playMove(move); }; moveList.append(b); }
+for(const c of controls) { const button=document.createElement('button'); button.textContent=c.glyph===c.label?c.label:`${c.glyph} ${c.label}`; button.onclick=()=>select(c.id); el('control-list').append(button); }
 app.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach(button=>button.onclick=()=> {
-  voice.stop(); const kind=button.dataset.lesson as LessonKind;
-  const target=kind==='find'?'a':kind==='click'?'left-stick':'right-bumper';
+  voice.stop(); stopMove(); const kind=button.dataset.lesson as LessonKind;
+  const target=kind==='find'?'cross':kind==='click'?'left-stick':'right-bumper';
   lesson=transitionLesson(lesson,{type:'start',kind,target}); el<HTMLInputElement>('hints').checked=true;
   updateLesson(); scene?.highlight(target);
   say(kind==='click'?'Clicking means pushing a stick straight down like a button. Click the left stick on screen to practise.':`Find ${byId.get(target)!.label}. You can turn hints off when you’re ready.`);

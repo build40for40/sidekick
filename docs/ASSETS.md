@@ -1,5 +1,16 @@
 # Controller asset contract
 
+## Current asset: PS5 DualSense (`public/assets/controller.glb`)
+
+- Source: "Playstation 5 Dualsense" (https://skfb.ly/opKOx) by AHarmlessPotato, licensed CC Attribution 4.0 (http://creativecommons.org/licenses/by/4.0/). The credit is shown in the app footer. Keep it there.
+- Modified from the Sketchfab 1k-texture GLB: the three material-grouped meshes were split into loose parts, each control's parts were grouped under a pivot node named after its manifest ID, pivot offsets were baked into each part's vertices, the Sketchfab root transforms were replaced by one `controller` node (+Z up, +Y towards the shoulders, scale 2.3), and the rest of the shell was regrouped under `body`. About 112k triangles, 5MB.
+- Inside `controller`, presses move along local -Z; triggers rotate about local X around a hinge at their top edge. See `movement` in `src/controller/manifest.ts`.
+- The scan's baked emissive map is switched off at load. Materials are upgraded to clearcoat physical materials in `ControllerScene.polish`.
+- Avoid glTF `extras` on pivot nodes: in testing, a node with an `extras.pivot` key loaded with a zero translation in three.js.
+- Fortnite moves in `sequences` are demo data from the default Builder Pro layout. Verify them in-game before calling them verified.
+
+## Earlier scaffold notes
+
 No supplied assets were present when this scaffold was built. The visible Xbox-style controller is generated from Three.js primitives, explicitly labelled temporary, and is not a manufacturer model. Blender is available on the initial development machine, but an export has not been tested because there is no source file yet.
 
 ## Export from Blender
