@@ -18,6 +18,8 @@ Whisper's original repository also includes its MIT licence; retain the respecti
 
 Qwen's exact default ID and the SmolLM2 alternative were confirmed against the installed `prebuiltAppConfig.model_list`. That config estimates Qwen's VRAM at 1629.75 MB; this is upstream metadata, not a device measurement or a guarantee. Allow additional memory for rendering and both audio models.
 
+The interface uses [DM Sans](https://github.com/google/fonts/tree/main/ofl/dmsans) and [Manrope](https://github.com/google/fonts/tree/main/ofl/manrope) from Google Fonts under the SIL Open Font License. The current scaffold fetches fonts as CSS assets; self-host them before offering a fully offline interface.
+
 ## API references used
 
 - [Transformers.js pipeline docs](https://huggingface.co/docs/transformers.js/api/pipelines): `pipeline('automatic-speech-recognition', id, options)`, progress callback, Float32Array audio.

@@ -15,13 +15,22 @@ Tests with fake media and adapters verify failure/cancellation logic only. They 
 
 The production build was opened in the available embedded Chromium browser on macOS. Verified temporary 3D rendering and labels, text fixture questions for right bumper and stick clicking, the virtual stick exercise, and the explicit local model setup flow. All three real models loaded and the Kokoro warmup completed. Reloading and enabling voice again also completed with cached model assets. This does not certify offline use.
 
-The first real Qwen generation selected a non-none action without a control ID; the application rejected it without executing it or speaking it. The generation schema was tightened so non-none actions require a control ID, alongside an explicit example in the system prompt. After that change, the real Qwen response to “Where is the right bumper?” passed validation, revealed the shoulder view, and completed real Kokoro synthesis and Web Audio playback. The browser returned to ready and emitted a timing event. This was a typed question, not a microphone recording.
+The first real Qwen generation selected a non-none action without a control ID; the application rejected it without executing it or speaking it. The generation schema was tightened so non-none actions require a control ID, alongside an explicit example in the system prompt. After that change, the real Qwen response to “Where is the right bumper?” passed validation, revealed the shoulder view, and completed real Kokoro synthesis and Web Audio playback. The browser returned to ready and emitted a timing event. The second real prompt, “What does clicking the stick mean?”, also completed with a brief straight-down-press explanation and local speech. These were typed questions, not microphone recordings. The 390px layout had a 390px scroll width with no horizontal overflow.
 
 ## Timing
 
 The app emits `[Sidekick local timing, milliseconds; firstAudible is scheduling estimate]` in the development console for completed local spoken turns. It records transcription, generation, synthesis and the interval from recording completion to scheduling playback, including the audio context's reported base latency. It is not an acoustic first-audio measurement. Text questions have a transcription duration of zero and time from submission instead of recording completion. Repeat timing is from the Repeat gesture.
 
-No microphone-to-audible timing baseline has been measured. Do not use automated fixture runtimes or upstream model metadata as voice performance claims.
+One real, warm-assets typed question (“Where is the right bumper?”) produced the following measurements in the embedded Chromium browser on macOS:
+
+| Stage | Measured time |
+| --- | ---: |
+| Transcription | Not run (typed input) |
+| Generation | 5384 ms |
+| Synthesis | 2819 ms |
+| Submission to scheduled playback, including reported audio latency | 8209 ms |
+
+This is one observed turn, not a benchmark, percentile, target or acoustic measurement. Hardware/GPU identity and exact browser version were not captured. No microphone-to-audible timing baseline has been measured. Do not use automated fixture runtimes or upstream model metadata as voice performance claims.
 
 ## Remaining limitations
 
