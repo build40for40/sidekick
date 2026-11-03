@@ -42,7 +42,7 @@ Build output includes an ESM entry at `dist/sidekick.js`, declarations and worke
 
 Current test target: Chrome on a modern laptop with WebGPU, a compatible GPU with sufficient free memory, WebAssembly, module workers, Web Audio and microphone access. Serve over HTTPS or localhost. Three.js renders with WebGL2; WebGPU is required by WebLLM. Phone compatibility testing (iPhone/Safari and Android/Chrome) is deferred. Other browsers/devices are not certified.
 
-Set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` when hosting, as in `vite.config.ts`. Serve JS, WASM and model assets with appropriate content types, CORS and caching. There is no server or production deployment included.
+Set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` when hosting, as in `vite.config.ts`. Serve JS, WASM and model assets with appropriate content types, CORS and caching. Production hosting is configured for Cloudflare at [build40for40.com/sidekick](https://build40for40.com/sidekick/). See [hosting setup and deployment](docs/HOSTING.md).
 
 The first download can be large and model initialization can take several minutes. Models are cached by the inference libraries where available. Cache eviction, browser updates and model changes can trigger downloads again. An unsupported device gets an explanation; the host can continue through the text-question API in development mode. There is no silent remote speech fallback.
 
