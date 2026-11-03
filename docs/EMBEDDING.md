@@ -78,3 +78,24 @@ There is no network API or HTTP inference service. These are browser-side JavaSc
 Use HTTPS or localhost, desktop Chrome with WebGPU and enough memory. Follow the COOP/COEP headers in `vite.config.ts` and serve all module/worker/WASM files with correct MIME types. The host CSP must permit its own module workers and the model asset hosts required by WebLLM, Transformers.js and Kokoro. Cross-origin iframes additionally need microphone permission policy delegation and compatible isolation; iframe voice has not been verified.
 
 The temporary controller and existing manifest remain the asset scaffold. For now, integrate a real GLB through the manifest and scene loader as described in [ASSETS.md](ASSETS.md); the public API does not yet expose arbitrary controller manifests or hot-swapping models.
+
+## Local performance profiles
+
+```ts
+const sidekick = createSidekick(element, {
+  performance: {
+    tutor: 'quality', // default Qwen 1.5B; experiments: 'fast' (Qwen 0.5B), 'compact' (SmolLM2 360M)
+    audioBackend: 'auto', // try WebGPU, explicitly report local WASM fallback; 'wasm' for comparisons
+  },
+});
+```
+
+Profiles are fixed for a mounted instance. Destroy and remount to compare models; reinitialize voice after the host has obtained download consent. No model is silently downloaded before that consent. These options do not change the selected game or supply missing game knowledge.
+
+Timing events retain `transcription`, `generation`, `synthesis`, and `firstAudible`, and add preparation/resampling time, queue wait, captured/trimmed audio duration, time to first synthesized sentence, runtime model/backend/dtype information, token counts, prefill/decode rates, time to first token and grammar initialization where WebLLM reports them. Text submissions start their latency clock at submission. `firstAudible` remains a playback scheduling estimate, not an acoustic measurement. `synthesis` accumulates model/cache request time, excluding playback. Later sentences may synthesize during earlier audio, so adding all stage durations does not represent total wall time.
+
+Recording uses a silent AudioWorklet to collect mono PCM when available. Its module is emitted alongside the other assets; serve it as JavaScript and allow same-origin worklet loading in your CSP. MediaRecorder remains a local compatibility path. Edge silence is trimmed with a conservative energy gate and padding; internal pauses are preserved. This is not a speech detector. Recognition runs after recording ends, rather than repeatedly decoding partial utterances.
+
+Interrupting busy ASR/TTS terminates only its worker; a later request lazily reloads that model from browser-managed asset caches. This trades reload cost for releasing cancelled compute. Idle model workers stay resident. The synthesizer maintains an 8 MiB in-memory audio cache per runtime; destroy releases it. Fully validated introductions play sentence by sentence, and the next sentence synthesizes during playback. Each action step stays a single audio unit so its visual cue remains aligned.
+
+For repeatable real-model checks, open `performance.html` on the same local/preview host. The lab is a separate host page, not part of the embedded controller. It records synthetic audio separately from typed tutor evaluations, offers quick smoke and five-pass full suites, and lets you save results locally. Inspect actual text, control choices and failures; a structural validation pass alone is not a semantic quality score. The lab disables response caching for inference comparisons.
